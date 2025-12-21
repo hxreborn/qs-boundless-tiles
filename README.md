@@ -7,9 +7,9 @@ LSPosed module that keeps third-party Quick Settings tiles responsive on Android
 
 ## Overview
 
-Android stock `SystemUI` [limits concurrent tile bindings to 3](https://android.googlesource.com/platform/frameworks/base/+/d5a204f16e7c71ffdbc6c8307a4134dcc1efd60d/packages/SystemUI/src/com/android/systemui/qs/external/TileServices.java#49), a cap unchanged since Android Nougat (2016). System tiles bypass this limit, but third-party tiles don't just time out—they're often never allowed to start. With ten tiles installed, seven are strictly forbidden from binding at any time.
+Android stock `SystemUI` [limits concurrent tile bindings to 3](https://android.googlesource.com/platform/frameworks/base/+/d5a204f16e7c71ffdbc6c8307a4134dcc1efd60d/packages/SystemUI/src/com/android/systemui/qs/external/TileServices.java#37), a cap unchanged since Android Nougat (2016). System tiles bypass this limit, but third-party tiles don't just time out, so they're often never allowed to start. With ten tiles installed, seven are strictly forbidden from binding at any time.
 
-The result: tap a tile like Caffeine or Home Assistant, nothing happens for 3-5 seconds. Tapping an unbound tile triggers a [recalculation of bind allowance](https://android.googlesource.com/platform/frameworks/base/+/d5a204f16e7c71ffdbc6c8307a4134dcc1efd60d/packages/SystemUI/src/com/android/systemui/qs/external/TileServices.java#164). Since Android 13, `CachedAppOptimizer` freezes processes with no active bindings. When a tile is unbound to free a slot, that process freezes. Tapping it later requires unfreeze + rebind.
+The result: tap a tile like Caffeine or Home Assistant, nothing happens for 3-5 seconds. Tapping an unbound tile triggers a [recalculation of bind allowance](https://android.googlesource.com/platform/frameworks/base/+/d5a204f16e7c71ffdbc6c8307a4134dcc1efd60d/packages/SystemUI/src/com/android/systemui/qs/external/TileServices.java#85). Since Android 13, `CachedAppOptimizer` freezes processes with no active bindings. When a tile is unbound to free a slot, that process freezes. Tapping it later requires unfreeze + rebind.
 
 This module raises the cap, letting all your tiles stay bound. No slot competition, no freezer delay.
 
@@ -36,8 +36,7 @@ Works on AOSP-based ROMs and Pixel devices. OEM-modified `SystemUI` (Samsung One
 2. Download latest APK from [releases](../../releases)
 3. Install APK and enable module in LSPosed Manager
 4. Add `com.android.systemui` to module scope
-5. Reboot or restart `SystemUI` (Supported via the app's built-in feature, requires root)
-5. Restart `SystemUI` or reboot
+5. Reboot or restart `SystemUI` (supported via the app's built-in feature, requires root)
 
 ## Usage
 
@@ -53,7 +52,7 @@ The **recommended value** is the sweet spot. It's calculated based on your curre
 
 **Stability**: Raising the cap increases the number of active `ServiceConnection` and `RemoteCallbackList` entries in `SystemUI`. While modern kernels handle this easily, keeping the limit to what you actually use (via the app's recommended slider) is better than maxing it out for no reason. Setting unreasonably high limits on older/budget devices with limited RAM may surface issues with poorly coded tiles that don't handle resources properly.
 
-## Build
+## Build from source
 
 ```bash
 ./gradlew assembleDebug
@@ -63,7 +62,6 @@ Requires JDK 21 and Gradle 8.13.
 
 ## License
 
-![GNU badge](https://img.shields.io/badge/-GNU-555?style=flat&logo=gnu&logoColor=white)
-![GPLv3 badge](https://img.shields.io/badge/-GPLv3-c62828?style=flat)
+<a href="LICENSE"><img src=".github/assets/gplv3.svg" height="90" alt="GPLv3"></a>
 
 This project is licensed under the GNU General Public License v3.0 – see the [LICENSE](LICENSE) file for details.
