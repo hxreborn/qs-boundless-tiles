@@ -2,7 +2,6 @@ package eu.hxreborn.qsboundlesstiles
 
 import android.os.Handler
 import android.os.Looper
-import eu.hxreborn.qsboundlesstiles.hook.TileLifecycleManagerHook
 import eu.hxreborn.qsboundlesstiles.hook.TileServicesHook
 import eu.hxreborn.qsboundlesstiles.prefs.PrefsManager
 import io.github.libxposed.api.XposedInterface
@@ -36,13 +35,6 @@ class QSBoundlessTilesModule(
             hooksSucceeded = true
         }.onFailure { e ->
             log("Failed to hook TileServices", e)
-        }
-
-        runCatching {
-            TileLifecycleManagerHook.hook(param.classLoader)
-            log("TileLifecycleManager hooked successfully")
-        }.onFailure { e ->
-            log("Failed to hook TileLifecycleManager", e)
         }
 
         if (hooksSucceeded) {
