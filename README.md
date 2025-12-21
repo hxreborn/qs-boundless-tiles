@@ -2,56 +2,56 @@
 
 LSPosed module that keeps third-party Quick Settings tiles responsive on Android 13+.
 
-![Kotlin](https://img.shields.io/badge/Kotlin-2.1.0-blue)
+![Kotlin](https://img.shields.io/badge/Kotlin-2.1.21-blue)
 ![Android API](https://img.shields.io/badge/API-33%2B-brightgreen)
 
 ## Overview
 
-Stock SystemUI limits concurrent tile bindings to 3 (`DEFAULT_MAX_BOUND = 3`). This limit dates back to [Nougat](https://android.googlesource.com/platform/frameworks/base/+/d5a204f16e7c71ffdbc6c8307a4134dcc1efd60d%5E%21/#F5) when phones had 2-4 GB RAM and each bound tile added steady memory overhead.
+Android stock `SystemUI` [limits concurrent tile bindings to 3](https://android.googlesource.com/platform/frameworks/base/+/d5a204f16e7c71ffdbc6c8307a4134dcc1efd60d/packages/SystemUI/src/com/android/systemui/qs/external/TileServices.java#49), a cap unchanged since Android Nougat (2016). System tiles bypass this limit, but third-party tiles don't just time out—they're often never allowed to start. With ten tiles installed, seven are strictly forbidden from binding at any time.
 
-If you run more than three third-party tiles, cold-start taps often feel dead because SystemUI still enforces that decade-old, hardcoded cap.
+The result: tap a tile like Caffeine or Home Assistant, nothing happens for 3-5 seconds. Tapping an unbound tile triggers a [recalculation of bind allowance](https://android.googlesource.com/platform/frameworks/base/+/d5a204f16e7c71ffdbc6c8307a4134dcc1efd60d/packages/SystemUI/src/com/android/systemui/qs/external/TileServices.java#164). Since Android 13, `CachedAppOptimizer` freezes processes with no active bindings. When a tile is unbound to free a slot, that process freezes. Tapping it later requires unfreeze + rebind.
 
-With 12 third-party tiles installed:
-- 3 tiles bind, 9 get `setBindAllowed(false)` immediately
-- Tapping an unbound tile triggers slot competition: request slot → kick another tile → bind → respond
-- This happens on every tap to an unbound tile, causing 3-5 second delays
+This module raises the cap, letting all your tiles stay bound. No slot competition, no freezer delay.
 
-Android 13+ made this worse: the freezer (CachedAppOptimizer) became stricter, so unbound tile processes get frozen. On tap, the OS must unfreeze + rebind.
+<details>
+<summary>Example: 10 third-party tiles installed</summary>
 
-## How It Works
-
-Hooks into `TileServices.mMaxBound` to raise the limit to your chosen value. With enough slots, all tiles bind when QS opens. No competition, no kicking, instant response.
-
-The module also blocks SystemUI from reducing the limit under memory pressure.
+- Android picks 3 tiles to bind based on priority (last update time, pending clicks)
+- You tap Tasker (unbound) → Android evicts lowest-priority tile, unfreezes Tasker, rebinds
+- 3-second delay every time you interact with an unbound tile
+</details>
 
 ## Requirements
 
+- LSPosed framework (API 100)
 - Android 13+ (API 33+)
-- LSPosed framework (JingMatrix fork recommended)
 
 ## Compatibility
 
-Tested on Pixel devices running stock Pixel UI and AOSP-based ROMs (Evolution X, LineageOS). Works as expected.
-
-OEM-modified SystemUI (Samsung OneUI, Xiaomi MIUI, etc.) is untested. These vendors often rewrite QS tile handling entirely, and may not even have the binding limit problem—or they've made it worse in creative new ways.
-
-## Trade-offs
-
-**Memory**: Each bound tile process holds RAM (10-30 MB per app). Higher cap = more resident memory. LMKD may kill background apps sooner under pressure.
-
-**Battery**: Idle bound services are cheap. Impact grows if tiles run listeners, timers, or foreground services.
-
-**Stability**: More bindings = more binder connections. Extreme values on low-RAM devices could expose buggy tiles that leak resources.
-
-Recommendation: set limit to 10-20.
+Works on AOSP-based ROMs and Pixel devices. OEM-modified `SystemUI` (Samsung OneUI, Xiaomi MIUI, etc.) is untested.
 
 ## Installation
 
-1. Install [LSPosed](https://github.com/JingMatrix/LSPosed)
+1. Install [LSPosed](https://github.com/JingMatrix/LSPosed) (JingMatrix fork recommended)
 2. Download latest APK from [releases](../../releases)
 3. Install APK and enable module in LSPosed Manager
 4. Add `com.android.systemui` to module scope
-5. Restart SystemUI or reboot
+5. Reboot or restart `SystemUI` (Supported via the app's built-in feature, requires root)
+5. Restart `SystemUI` or reboot
+
+## Usage
+
+Once the module is enabled in LSPosed and you've rebooted (phone or `SystemUI`), simply open the app and select your preferred tile binding limit using the slider.
+
+The **recommended value** is the sweet spot. It's calculated based on your currently active tiles and the maximum theoretical tiles available from all installed apps. You can go higher or lower depending on your needs.
+
+## Trade-offs
+
+**Memory**: Each bound tile process uses 10-30 MB of RAM. Modern Android 13+ devices ship with 6-12 GB RAM minimum, so even with 15-20 tiles bound, the impact is negligible. The app calculates the recommended limit based on your installed tiles.
+
+**Battery**: Idle bound services use minimal power. Impact grows if tiles run listeners, timers, or foreground services.
+
+**Stability**: Raising the cap increases the number of active `ServiceConnection` and `RemoteCallbackList` entries in `SystemUI`. While modern kernels handle this easily, keeping the limit to what you actually use (via the app's recommended slider) is better than maxing it out for no reason. Setting unreasonably high limits on older/budget devices with limited RAM may surface issues with poorly coded tiles that don't handle resources properly.
 
 ## Build
 
