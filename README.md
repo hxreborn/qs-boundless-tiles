@@ -2,6 +2,7 @@
 
 LSPosed module that keeps third-party Quick Settings tiles responsive on Android 13+.
 
+![Android CI](https://github.com/hxreborn/qs-boundless-tiles/actions/workflows/android-ci.yml/badge.svg)
 ![Kotlin](https://img.shields.io/badge/Kotlin-2.1.21-blue)
 ![Android API](https://img.shields.io/badge/API-33%2B-brightgreen)
 
