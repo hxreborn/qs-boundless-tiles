@@ -1,0 +1,187 @@
+package eu.hxreborn.qsboundlesstiles.hook
+
+import eu.hxreborn.qsboundlesstiles.QSBoundlessTilesModule.Companion.log
+import eu.hxreborn.qsboundlesstiles.module
+import eu.hxreborn.qsboundlesstiles.prefs.PrefsManager
+import io.github.libxposed.api.XposedInterface
+import io.github.libxposed.api.XposedInterface.AfterHookCallback
+import io.github.libxposed.api.annotations.AfterInvocation
+import io.github.libxposed.api.annotations.XposedHooker
+import java.lang.reflect.Field
+
+private const val TILE_SERVICES_CLASS = "com.android.systemui.qs.external.TileServices"
+
+object TileServicesHook {
+    private var maxBoundField: Field? = null
+
+    @Volatile
+    var activeMaxBound: Int = 3
+        private set
+
+    fun hook(classLoader: ClassLoader) {
+        log("TileServicesHook: Starting hook...")
+
+        val tileServicesClass = classLoader.loadClass(TILE_SERVICES_CLASS)
+
+        runCatching {
+            val defaultMaxBound = tileServicesClass.getDeclaredField("DEFAULT_MAX_BOUND")
+            defaultMaxBound.isAccessible = true
+            val reducedMaxBound = tileServicesClass.getDeclaredField("REDUCED_MAX_BOUND")
+            reducedMaxBound.isAccessible = true
+            log(
+                "TileServicesHook: DEFAULT_MAX_BOUND=${defaultMaxBound.getInt(
+                    null,
+                )}, REDUCED_MAX_BOUND=${reducedMaxBound.getInt(null)}",
+            )
+        }.onFailure {
+            log("TileServicesHook: Could not read constants: ${it.message}")
+        }
+
+        runCatching {
+            maxBoundField =
+                tileServicesClass.getDeclaredField("mMaxBound").apply { isAccessible = true }
+            log("TileServicesHook: Found mMaxBound field")
+        }.onFailure {
+            log("TileServicesHook: Could not find mMaxBound field: ${it.message}")
+        }
+
+        tileServicesClass.declaredConstructors.forEach { constructor ->
+            module.hook(constructor, TileServicesConstructorHooker::class.java)
+            log("TileServicesHook: Hooked constructor with ${constructor.parameterCount} params")
+        }
+
+        tileServicesClass.declaredMethods
+            .find { it.name == "setMemoryPressure" && it.parameterCount == 1 }
+            ?.let {
+                module.hook(it, SetMemoryPressureHooker::class.java)
+                log("TileServicesHook: Hooked setMemoryPressure")
+            }
+
+        tileServicesClass.declaredMethods
+            .find { it.name == "recalculateBindAllowance" && it.parameterCount == 0 }
+            ?.let {
+                module.hook(it, RecalculateBindAllowanceHooker::class.java)
+                log("TileServicesHook: Hooked recalculateBindAllowance")
+            }
+
+        log("TileServicesHook: Hook setup complete")
+    }
+
+    fun setMaxBound(
+        tileServices: Any,
+        value: Int,
+    ) {
+        runCatching {
+            val field = maxBoundField ?: return
+            val oldValue = field.getInt(tileServices)
+            field.setInt(tileServices, value)
+            activeMaxBound = value
+            log("TileServicesHook: mMaxBound changed from $oldValue to $value")
+        }.onFailure {
+            log("TileServicesHook: Failed to set mMaxBound: ${it.message}")
+        }
+    }
+
+    fun getMaxBound(tileServices: Any): Int =
+        runCatching { maxBoundField?.getInt(tileServices) }.getOrNull() ?: -1
+}
+
+@XposedHooker
+class TileServicesConstructorHooker : XposedInterface.Hooker {
+    companion object {
+        @JvmStatic
+        @AfterInvocation
+        fun after(callback: AfterHookCallback) {
+            if (!PrefsManager.isMasterEnabled()) {
+                log("TileServicesConstructorHooker: master disabled, skipping")
+                return
+            }
+            val tileServices = callback.thisObject ?: return
+            val userMax = PrefsManager.getEffectiveMaxBound()
+            val newMax = maxOf(3, userMax)
+            log("TileServicesConstructorHooker: mMaxBound 3 → $newMax")
+            TileServicesHook.setMaxBound(tileServices, newMax)
+        }
+    }
+}
+
+@XposedHooker
+class SetMemoryPressureHooker : XposedInterface.Hooker {
+    companion object {
+        @JvmStatic
+        @AfterInvocation
+        fun after(callback: AfterHookCallback) {
+            if (!PrefsManager.isMasterEnabled()) return
+            val tileServices = callback.thisObject ?: return
+            val memoryPressure = callback.args[0] as? Boolean ?: return
+            val newMax = maxOf(3, PrefsManager.getEffectiveMaxBound())
+            log(
+                "SetMemoryPressureHooker: memoryPressure=$memoryPressure, forcing mMaxBound=$newMax",
+            )
+            TileServicesHook.setMaxBound(tileServices, newMax)
+        }
+    }
+}
+
+@XposedHooker
+class RecalculateBindAllowanceHooker : XposedInterface.Hooker {
+    companion object {
+        private var bindAllowedField: Field? = null
+        private var stateManagerField: Field? = null
+        private var intentField: Field? = null
+
+        @JvmStatic
+        @AfterInvocation
+        fun after(callback: AfterHookCallback) {
+            val tileServices = callback.thisObject ?: return
+            val currentMax = TileServicesHook.getMaxBound(tileServices)
+
+            runCatching {
+                val servicesField = tileServices.javaClass.getDeclaredField("mServices")
+                servicesField.isAccessible = true
+                val services = servicesField.get(tileServices) as? Map<*, *> ?: return
+
+                val bound = mutableListOf<String>()
+                val unbound = mutableListOf<String>()
+
+                for ((_, manager) in services) {
+                    val pkg = getPackageName(manager!!) ?: "unknown"
+                    val isAllowed = isBindAllowed(manager)
+                    if (isAllowed) bound.add(pkg) else unbound.add(pkg)
+                }
+
+                log("BIND_STATE bound=${bound.size}/$currentMax: $bound")
+                if (unbound.isNotEmpty()) {
+                    log("BIND_STATE unbound=${unbound.size}: $unbound")
+                }
+            }.onFailure {
+                log("RecalculateBindAllowanceHooker: error: ${it.message}")
+            }
+        }
+
+        private fun isBindAllowed(manager: Any): Boolean =
+            runCatching {
+                if (bindAllowedField == null) {
+                    bindAllowedField = manager.javaClass.getDeclaredField("mBindAllowed")
+                    bindAllowedField!!.isAccessible = true
+                }
+                bindAllowedField!!.getBoolean(manager)
+            }.getOrDefault(false)
+
+        private fun getPackageName(manager: Any): String? =
+            runCatching {
+                if (stateManagerField == null) {
+                    stateManagerField = manager.javaClass.getDeclaredField("mStateManager")
+                    stateManagerField!!.isAccessible = true
+                }
+                val stateManager = stateManagerField!!.get(manager) ?: return@runCatching null
+
+                if (intentField == null) {
+                    intentField = stateManager.javaClass.getDeclaredField("mIntent")
+                    intentField!!.isAccessible = true
+                }
+                val intent = intentField!!.get(stateManager) as? android.content.Intent
+                intent?.component?.packageName
+            }.getOrNull()
+    }
+}

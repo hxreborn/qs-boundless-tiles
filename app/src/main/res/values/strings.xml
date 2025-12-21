@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">QS Boundless Tiles</string>
+    <string name="app_desc">Keep Quick Settings tiles responsive by keeping their TileService bound</string>
+
+    <!-- Status Card -->
+    <string name="status_active_subtitle">%1$s (%2$d) \u2014 by hxreborn</string>
+
+    <!-- Tile Limit Card -->
+    <string name="tile_limit_title">Tile binding limit</string>
+    <string name="tile_limit_target_subtitle">How many tiles SystemUI keeps preloaded</string>
+    <string name="status_all_bound">All tiles stay bound</string>
+    <string name="status_may_unbind">Over limit \u2014 %d may unbind</string>
+
+    <!-- Tile Statistics -->
+    <string name="stat_active_qs">Active QS tiles</string>
+    <string name="stat_active_caption">Tiles placed in QS panel</string>
+    <string name="stat_providers">Available tile providers</string>
+    <string name="stat_providers_caption">Third-party apps with tile services</string>
+    <string name="stat_systemui">SystemUI</string>
+    <string name="systemui_up_to_date">Up to date</string>
+    <string name="systemui_restart_required">Restart required</string>
+    <string name="systemui_caption">Current active limit in memory</string>
+    <string name="stat_root">Root privileges</string>
+    <string name="stat_root_caption">Required to restart SystemUI</string>
+    <string name="root_available">Available</string>
+    <string name="root_unavailable">Unavailable</string>
+    <string name="root_symbol">#</string>
+
+    <!-- Slider -->
+    <string name="slider_min_label">3</string>
+    <string name="slider_max_label">%d</string>
+    <string name="recommended_label">Recommended</string>
+    <string name="limit_changed">Limit changed: %1$d \u2192 %2$d</string>
+    <string name="undo">Undo</string>
+
+    <!-- Menu Actions -->
+    <string name="apply_recommended">Apply recommended</string>
+    <string name="apply_recommended_confirm">Set limit to %d (active tiles + buffer)?</string>
+    <string name="apply_recommended_done">Applied recommended settings</string>
+    <string name="reset_stock">Reset to stock</string>
+    <string name="reset_stock_confirm">Reset limit to 3 (Android default)?</string>
+    <string name="reset_stock_done">Reset to stock</string>
+
+    <!-- Restart SystemUI -->
+    <string name="restart_systemui">Restart SystemUI</string>
+    <string name="restart_warning">Applies pending changes. May interrupt ongoing tasks.</string>
+    <string name="restart_systemui_no_root">Root access required to restart SystemUI</string>
+    <string name="restart_systemui_success">SystemUI restarted</string>
+    <string name="restart_systemui_failed">Failed to restart SystemUI</string>
+
+    <!-- Feedback Card -->
+    <string name="feedback_title">Having trouble?</string>
+    <string name="feedback_subtitle">Report issues or give feedback</string>
+
+    <!-- Misc -->
+    <string name="github">GitHub</string>
+</resources>
