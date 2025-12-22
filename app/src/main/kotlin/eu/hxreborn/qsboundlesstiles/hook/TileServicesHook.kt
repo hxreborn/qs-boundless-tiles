@@ -33,13 +33,15 @@ object TileServicesHook {
             log("TileServicesHook: Could not read constants: ${it.message}")
         }
 
-        runCatching {
-            maxBoundField =
-                tileServicesClass.getDeclaredField("mMaxBound").apply { isAccessible = true }
+        maxBoundField = runCatching {
+            tileServicesClass.getDeclaredField("mMaxBound").apply { isAccessible = true }
+        }.onSuccess {
             log("TileServicesHook: Found mMaxBound field")
         }.onFailure {
-            log("TileServicesHook: Could not find mMaxBound field: ${it.message}")
-        }
+            log("TileServicesHook: mMaxBound field not found, aborting hook: ${it.message}")
+        }.getOrNull()
+
+        if (maxBoundField == null) return
 
         tileServicesClass.declaredConstructors.forEach { constructor ->
             module.hook(constructor, TileServicesConstructorHooker::class.java)
