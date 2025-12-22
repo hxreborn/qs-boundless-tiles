@@ -140,16 +140,15 @@ class MainActivity :
     }
 
     private fun loadPrefs() {
-        val autoBuffer = DEFAULT_AUTO_BUFFER
         val activeInQs = activeQsCount
         val availableApps = TileScanner.getThirdPartyTileCount(this)
-        val recommended = activeInQs + autoBuffer
+        val recommended = activeInQs + DEFAULT_AUTO_BUFFER
         val maxBound = getMaxBound()
 
         binding.targetLimit.text = maxBound.toString()
         binding.systemuiStatus.text = maxBound.toString()
 
-        val sliderMax = (availableApps + autoBuffer).coerceAtLeast(10)
+        val sliderMax = availableApps.coerceAtLeast(10)
         binding.maxBoundSlider.valueTo = sliderMax.toFloat()
         binding.sliderMaxLabel.text = getString(R.string.slider_max_label, sliderMax)
         val clampedValue = maxBound.coerceIn(PrefsManager.DEFAULT_MAX_BOUND, sliderMax)
@@ -201,7 +200,7 @@ class MainActivity :
                     if (hasRoot) {
                         android.R.attr.colorPrimary
                     } else {
-                        M.attr.colorOnSurfaceVariant
+                        M.attr.colorTertiary
                     },
                 ),
             )
