@@ -91,10 +91,6 @@ class TileServicesConstructorHooker : XposedInterface.Hooker {
         @JvmStatic
         @AfterInvocation
         fun after(callback: AfterHookCallback) {
-            if (!PrefsManager.isMasterEnabled()) {
-                log("TileServicesConstructorHooker: master disabled, skipping")
-                return
-            }
             val tileServices = callback.thisObject ?: return
             val userMax = PrefsManager.getMaxBound()
             val newMax = maxOf(PrefsManager.DEFAULT_MAX_BOUND, userMax)
@@ -110,7 +106,6 @@ class SetMemoryPressureHooker : XposedInterface.Hooker {
         @JvmStatic
         @AfterInvocation
         fun after(callback: AfterHookCallback) {
-            if (!PrefsManager.isMasterEnabled()) return
             val tileServices = callback.thisObject ?: return
             val memoryPressure = callback.args[0] as? Boolean ?: return
             val newMax = maxOf(PrefsManager.DEFAULT_MAX_BOUND, PrefsManager.getMaxBound())
