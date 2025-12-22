@@ -73,8 +73,6 @@ class MainActivity :
         remotePrefs?.getInt("max_bound", PrefsManager.DEFAULT_MAX_BOUND)
             ?: PrefsManager.DEFAULT_MAX_BOUND
 
-    private fun getActiveQsCount(): Int = activeQsCount
-
     private fun refreshActiveQsCount() {
         lifecycleScope.launch {
             activeQsCount = RootUtils.getActiveQsTileCount()
@@ -130,7 +128,7 @@ class MainActivity :
 
     private fun loadPrefs() {
         val autoBuffer = DEFAULT_AUTO_BUFFER
-        val activeInQs = getActiveQsCount()
+        val activeInQs = activeQsCount
         val availableApps = TileScanner.getThirdPartyTileCount(this)
         val recommended = activeInQs + autoBuffer
         val maxBound = getMaxBound()
@@ -243,7 +241,7 @@ class MainActivity :
                 val intValue = value.toInt()
                 setMaxBound(intValue)
                 binding.targetLimit.text = intValue.toString()
-                updateStatusLine(intValue, getActiveQsCount())
+                updateStatusLine(intValue, activeQsCount)
                 updateStatusCard()
             }
         }
@@ -284,7 +282,7 @@ class MainActivity :
                     binding.maxBoundSlider.value = oldValue.toFloat()
                     setMaxBound(oldValue)
                     binding.targetLimit.text = oldValue.toString()
-                    updateStatusLine(oldValue, getActiveQsCount())
+                    updateStatusLine(oldValue, activeQsCount)
                     updateStatusCard()
                     previousMaxBound = oldValue
                 }
@@ -328,7 +326,7 @@ class MainActivity :
 
     private fun showApplyRecommendedDialog() {
         val recommended =
-            (getActiveQsCount() + DEFAULT_AUTO_BUFFER).coerceIn(
+            (activeQsCount + DEFAULT_AUTO_BUFFER).coerceIn(
                 PrefsManager.DEFAULT_MAX_BOUND,
                 PrefsManager.MAX_BOUND,
             )
