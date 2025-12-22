@@ -19,7 +19,8 @@ class QSBoundlessTilesModule(
     }
 
     override fun onPackageLoaded(param: PackageLoadedParam) {
-        if (!param.isFirstPackage) return
+        if (!param.isFirstPackage || param.packageName != SYSTEMUI_PACKAGE || hooked) return
+        hooked = true
 
         log("SystemUI loaded, hooking tile services...")
 
@@ -35,6 +36,8 @@ class QSBoundlessTilesModule(
 
     companion object {
         private const val TAG = "QSBoundlessTiles"
+        private const val SYSTEMUI_PACKAGE = "com.android.systemui"
+        private var hooked = false
 
         fun log(
             msg: String,
