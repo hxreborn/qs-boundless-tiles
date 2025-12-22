@@ -20,7 +20,7 @@ object PrefsManager {
             remotePrefs = xposed.getRemotePreferences(PREFS_GROUP)
             refreshCache()
 
-            // Cache updates on pref changes; hooks read from cache on each invocation
+            // Hooks read from cache, listener keeps it in sync
             remotePrefs?.registerOnSharedPreferenceChangeListener { _, key ->
                 log("PrefsManager: preference changed: $key")
                 if (key == "max_bound") refreshCache()
