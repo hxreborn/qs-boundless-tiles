@@ -14,10 +14,6 @@ private const val TILE_SERVICES_CLASS = "com.android.systemui.qs.external.TileSe
 object TileServicesHook {
     private var maxBoundField: Field? = null
 
-    @Volatile
-    var activeMaxBound: Int = 3
-        private set
-
     fun hook(classLoader: ClassLoader) {
         log("TileServicesHook: Starting hook...")
 
@@ -75,7 +71,6 @@ object TileServicesHook {
             val field = maxBoundField ?: return
             val oldValue = field.getInt(tileServices)
             field.setInt(tileServices, value)
-            activeMaxBound = value
             log("TileServicesHook: mMaxBound changed from $oldValue to $value")
         }.onFailure {
             log("TileServicesHook: Failed to set mMaxBound: ${it.message}")
@@ -97,7 +92,7 @@ class TileServicesConstructorHooker : XposedInterface.Hooker {
                 return
             }
             val tileServices = callback.thisObject ?: return
-            val userMax = PrefsManager.getEffectiveMaxBound()
+            val userMax = PrefsManager.getMaxBound()
             val newMax = maxOf(3, userMax)
             log("TileServicesConstructorHooker: mMaxBound 3 → $newMax")
             TileServicesHook.setMaxBound(tileServices, newMax)
@@ -114,7 +109,7 @@ class SetMemoryPressureHooker : XposedInterface.Hooker {
             if (!PrefsManager.isMasterEnabled()) return
             val tileServices = callback.thisObject ?: return
             val memoryPressure = callback.args[0] as? Boolean ?: return
-            val newMax = maxOf(3, PrefsManager.getEffectiveMaxBound())
+            val newMax = maxOf(3, PrefsManager.getMaxBound())
             log(
                 "SetMemoryPressureHooker: memoryPressure=$memoryPressure, forcing mMaxBound=$newMax",
             )
