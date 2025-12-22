@@ -11,6 +11,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.res.use
 import androidx.lifecycle.lifecycleScope
+import com.google.android.material.R as M
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import eu.hxreborn.qsboundlesstiles.QSBoundlessTilesApp
@@ -82,32 +83,23 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
     }
 
     private fun updateStatusCard() {
-        val prefs = remotePrefs
-        val hookAlive = xposedService != null
-        val maxBound = getMaxBound()
+        val isActive = xposedService != null
 
-        // With remote prefs, the hook gets updates via change listener
-        // If service is connected, we consider it synced
-        val isSynced = hookAlive
-
-        val (titleRes, iconRes, bgColorAttr, contentColorAttr, clickable) =
-            if (isSynced) {
-                StatusStyle(
-                    R.string.systemui_up_to_date,
-                    R.drawable.ic_check_circle_24,
-                    android.R.attr.colorPrimary,
-                    com.google.android.material.R.attr.colorOnPrimary,
-                    false,
-                )
-            } else {
-                StatusStyle(
-                    R.string.systemui_restart_required,
-                    R.drawable.ic_refresh_24,
-                    com.google.android.material.R.attr.colorTertiary,
-                    com.google.android.material.R.attr.colorOnTertiary,
-                    true,
-                )
-            }
+        val (titleRes, iconRes, bgColorAttr, contentColorAttr) = if (isActive) {
+            StatusStyle(
+                R.string.module_active,
+                R.drawable.ic_check_circle_24,
+                android.R.attr.colorPrimary,
+                M.attr.colorOnPrimary,
+            )
+        } else {
+            StatusStyle(
+                R.string.module_inactive,
+                R.drawable.ic_warning_24,
+                M.attr.colorTertiary,
+                M.attr.colorOnTertiary,
+            )
+        }
 
         val bgColor = getThemeColor(bgColorAttr)
         val contentColor = getThemeColor(contentColorAttr)
@@ -128,9 +120,6 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
                 BuildConfig.VERSION_CODE,
             )
         binding.statusCard.statusSubtitle.setTextColor(contentColor)
-
-        card.isClickable = clickable
-        card.setOnClickListener(if (clickable) { { showRestartDialog() } } else null)
     }
 
     private fun loadPrefs() {
@@ -200,7 +189,7 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
                     if (hasRoot) {
                         android.R.attr.colorPrimary
                     } else {
-                        com.google.android.material.R.attr.colorOnSurfaceVariant
+                        M.attr.colorOnSurfaceVariant
                     },
                 ),
             )
@@ -216,7 +205,7 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
 
         val statusColor =
             if (isOverflow) {
-                getThemeColor(com.google.android.material.R.attr.colorTertiary)
+                getThemeColor(M.attr.colorTertiary)
             } else {
                 getThemeColor(android.R.attr.colorPrimary)
             }
@@ -401,7 +390,6 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
         val iconRes: Int,
         val bgColorAttr: Int,
         val contentColorAttr: Int,
-        val clickable: Boolean,
     )
 
     companion object {
