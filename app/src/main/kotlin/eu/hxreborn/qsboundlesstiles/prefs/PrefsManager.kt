@@ -11,8 +11,8 @@ object PrefsManager {
 
     private var remotePrefs: SharedPreferences? = null
 
-    private var masterEnabledCache: Boolean = true
-    private var maxBoundCache: Int = DEFAULT_MAX_BOUND
+    @Volatile private var masterEnabledCache: Boolean = true
+    @Volatile private var maxBoundCache: Int = DEFAULT_MAX_BOUND
 
     fun init(xposed: XposedInterface) {
         log("PrefsManager.init() called")
@@ -45,6 +45,7 @@ object PrefsManager {
         runCatching {
             masterEnabledCache = prefs.getBoolean("master_enabled", true)
             maxBoundCache = prefs.getInt("max_bound", DEFAULT_MAX_BOUND)
+                .coerceIn(DEFAULT_MAX_BOUND, MAX_BOUND)
             log("refreshCache() success: master=$masterEnabledCache, maxBound=$maxBoundCache")
         }.onFailure {
             log("refreshCache() failed", it)
