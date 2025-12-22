@@ -22,13 +22,20 @@ object RootUtils {
         withContext(Dispatchers.IO) {
             runCatching {
                 coroutineScope {
-                    val p = ProcessBuilder("su", "-c", "settings get secure sysui_qs_tiles")
-                        .redirectErrorStream(true).start()
+                    val p =
+                        ProcessBuilder("su", "-c", "settings get secure sysui_qs_tiles")
+                            .redirectErrorStream(true)
+                            .start()
                     // Read stdout concurrently to avoid pipe buffer deadlock
-                    val outputDeferred = async(Dispatchers.IO) {
-                        p.inputStream.bufferedReader().use { it.readText().trim() }
-                    }
-                    val completed = p.waitFor(DEFAULT_TIMEOUT.inWholeMilliseconds, TimeUnit.MILLISECONDS)
+                    val outputDeferred =
+                        async(Dispatchers.IO) {
+                            p.inputStream.bufferedReader().use { it.readText().trim() }
+                        }
+                    val completed =
+                        p.waitFor(
+                            DEFAULT_TIMEOUT.inWholeMilliseconds,
+                            TimeUnit.MILLISECONDS,
+                        )
                     if (!completed) {
                         p.destroyForcibly()
                         outputDeferred.cancel()
@@ -52,9 +59,10 @@ object RootUtils {
                 coroutineScope {
                     val p = ProcessBuilder("su", "-c", cmd).redirectErrorStream(true).start()
                     // Read stdout concurrently to avoid pipe buffer deadlock
-                    val outputDeferred = async(Dispatchers.IO) {
-                        p.inputStream.bufferedReader().use { it.readText() }
-                    }
+                    val outputDeferred =
+                        async(Dispatchers.IO) {
+                            p.inputStream.bufferedReader().use { it.readText() }
+                        }
                     val completed = p.waitFor(timeout.inWholeMilliseconds, TimeUnit.MILLISECONDS)
                     if (!completed) {
                         p.destroyForcibly()
