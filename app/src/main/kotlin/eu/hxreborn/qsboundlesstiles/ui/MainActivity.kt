@@ -11,6 +11,9 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.edit
 import androidx.core.content.res.use
+import androidx.core.view.isGone
+import androidx.core.view.isInvisible
+import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
@@ -152,19 +155,13 @@ class MainActivity :
         val clampedValue = maxBound.coerceIn(PrefsManager.DEFAULT_MAX_BOUND, sliderMax)
         binding.maxBoundSlider.value = clampedValue.toFloat()
 
-        if (activeInQs > 0) {
-            binding.recommendedIndicator.visibility = android.view.View.VISIBLE
-            positionRecommendedTick(recommended)
-        } else {
-            binding.recommendedIndicator.visibility = android.view.View.INVISIBLE
-        }
+        binding.recommendedIndicator.isInvisible = activeInQs <= 0
+        if (activeInQs > 0) positionRecommendedTick(recommended)
         updateStatusLine(maxBound, activeInQs)
 
         val hasActiveQs = activeInQs > 0
-        binding.statusDivider.visibility =
-            if (hasActiveQs) android.view.View.VISIBLE else android.view.View.GONE
-        binding.statusLineContainer.visibility =
-            if (hasActiveQs) android.view.View.VISIBLE else android.view.View.GONE
+        binding.statusDivider.isGone = !hasActiveQs
+        binding.statusLineContainer.isGone = !hasActiveQs
 
         binding.statActiveValue.text = if (activeInQs == 0) "—" else activeInQs.toString()
         binding.statProvidersValue.text = availableApps.toString()
@@ -238,13 +235,10 @@ class MainActivity :
         binding.tileStatusIcon.imageTintList = ColorStateList.valueOf(statusColor)
     }
 
-    private var previousMaxBound: Int = 0
     private var dragStartValue: Int = 0
     private var currentSnackbar: Snackbar? = null
 
     private fun setupSlider() {
-        previousMaxBound = getMaxBound()
-
         binding.maxBoundSlider.addOnChangeListener { _, value, fromUser ->
             if (fromUser) {
                 val intValue = value.toInt()
@@ -269,7 +263,6 @@ class MainActivity :
                     val newValue = slider.value.toInt()
                     if (dragStartValue != newValue) {
                         showUndoSnackbar(dragStartValue, newValue)
-                        previousMaxBound = newValue
                     }
                 }
             },
@@ -293,7 +286,6 @@ class MainActivity :
                     binding.targetLimit.text = oldValue.toString()
                     updateStatusLine(oldValue, activeQsCount)
                     updateStatusCard()
-                    previousMaxBound = oldValue
                 }
         currentSnackbar?.show()
     }
@@ -398,7 +390,12 @@ class MainActivity :
                 updateStatusCard()
                 loadPrefs()
                 if (!rebound) {
-                    Toast.makeText(this@MainActivity, R.string.systemui_still_restarting, Toast.LENGTH_SHORT).show()
+                    Toast
+                        .makeText(
+                            this@MainActivity,
+                            R.string.systemui_still_restarting,
+                            Toast.LENGTH_SHORT,
+                        ).show()
                 }
             }
         }
@@ -407,13 +404,15 @@ class MainActivity :
     private suspend fun awaitSystemUiRebind(timeout: Duration = 5.seconds): Boolean =
         withTimeoutOrNull(timeout) {
             suspendCancellableCoroutine { cont ->
-                val listener = object : XposedServiceHelper.OnServiceListener {
-                    override fun onServiceBind(service: XposedService) {
-                        QSBoundlessTilesApp.removeServiceListener(this)
-                        if (cont.isActive) cont.resume(true)
+                val listener =
+                    object : XposedServiceHelper.OnServiceListener {
+                        override fun onServiceBind(service: XposedService) {
+                            QSBoundlessTilesApp.removeServiceListener(this)
+                            if (cont.isActive) cont.resume(true)
+                        }
+
+                        override fun onServiceDied(service: XposedService) = Unit
                     }
-                    override fun onServiceDied(service: XposedService) = Unit
-                }
                 QSBoundlessTilesApp.addServiceListener(listener)
                 cont.invokeOnCancellation { QSBoundlessTilesApp.removeServiceListener(listener) }
             }
