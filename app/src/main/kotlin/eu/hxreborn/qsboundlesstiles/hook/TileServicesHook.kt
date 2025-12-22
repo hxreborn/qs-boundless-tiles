@@ -10,12 +10,16 @@ import io.github.libxposed.api.annotations.XposedHooker
 import java.lang.reflect.Field
 
 private const val TILE_SERVICES_CLASS = "com.android.systemui.qs.external.TileServices"
+private const val TAG = "[Hook]"
+private const val TAG_CTOR = "[Ctor]"
+private const val TAG_MEMORY = "[Memory]"
+private const val TAG_BIND = "[Bind]"
 
 object TileServicesHook {
     private var maxBoundField: Field? = null
 
     fun hook(classLoader: ClassLoader) {
-        log("TileServicesHook: Starting hook...")
+        log("$TAG Starting hook...")
 
         val tileServicesClass = classLoader.loadClass(TILE_SERVICES_CLASS)
 
@@ -25,27 +29,26 @@ object TileServicesHook {
             val reducedMaxBound = tileServicesClass.getDeclaredField("REDUCED_MAX_BOUND")
             reducedMaxBound.isAccessible = true
             log(
-                "TileServicesHook: DEFAULT_MAX_BOUND=${defaultMaxBound.getInt(
-                    null,
-                )}, REDUCED_MAX_BOUND=${reducedMaxBound.getInt(null)}",
+                "$TAG DEFAULT_MAX_BOUND=${defaultMaxBound.getInt(null)}, " +
+                    "REDUCED_MAX_BOUND=${reducedMaxBound.getInt(null)}",
             )
         }.onFailure {
-            log("TileServicesHook: Could not read constants: ${it.message}")
+            log("$TAG Could not read constants: ${it.message}")
         }
 
         maxBoundField = runCatching {
             tileServicesClass.getDeclaredField("mMaxBound").apply { isAccessible = true }
         }.onSuccess {
-            log("TileServicesHook: Found mMaxBound field")
+            log("$TAG Found mMaxBound field")
         }.onFailure {
-            log("TileServicesHook: mMaxBound field not found, aborting hook: ${it.message}")
+            log("$TAG mMaxBound not found, aborting: ${it.message}")
         }.getOrNull()
 
         if (maxBoundField == null) return
 
         tileServicesClass.declaredConstructors.forEach { constructor ->
             module.hook(constructor, TileServicesConstructorHooker::class.java)
-            log("TileServicesHook: Hooked constructor with ${constructor.parameterCount} params")
+            log("$TAG Hooked constructor(${constructor.parameterCount})")
         }
 
         // Override memory pressure response to maintain user's limit
@@ -53,18 +56,18 @@ object TileServicesHook {
             .find { it.name == "setMemoryPressure" && it.parameterCount == 1 }
             ?.let {
                 module.hook(it, SetMemoryPressureHooker::class.java)
-                log("TileServicesHook: Hooked setMemoryPressure")
+                log("$TAG Hooked setMemoryPressure")
             }
 
-        // Diagnostic hook: logs which tiles are bound vs unbound after each recalculation
+        // Diagnostic only, logs bound vs unbound tiles
         tileServicesClass.declaredMethods
             .find { it.name == "recalculateBindAllowance" && it.parameterCount == 0 }
             ?.let {
                 module.hook(it, RecalculateBindAllowanceHooker::class.java)
-                log("TileServicesHook: Hooked recalculateBindAllowance")
+                log("$TAG Hooked recalculateBindAllowance")
             }
 
-        log("TileServicesHook: Hook setup complete")
+        log("$TAG Setup complete")
     }
 
     fun setMaxBound(
@@ -75,9 +78,9 @@ object TileServicesHook {
             val field = maxBoundField ?: return
             val oldValue = field.getInt(tileServices)
             field.setInt(tileServices, value)
-            log("TileServicesHook: mMaxBound changed from $oldValue to $value")
+            log("$TAG mMaxBound $oldValue → $value")
         }.onFailure {
-            log("TileServicesHook: Failed to set mMaxBound: ${it.message}")
+            log("$TAG Failed to set mMaxBound: ${it.message}")
         }
     }
 
@@ -94,7 +97,7 @@ class TileServicesConstructorHooker : XposedInterface.Hooker {
             val tileServices = callback.thisObject ?: return
             val userMax = PrefsManager.getMaxBound()
             val newMax = maxOf(PrefsManager.DEFAULT_MAX_BOUND, userMax)
-            log("TileServicesConstructorHooker: mMaxBound ${PrefsManager.DEFAULT_MAX_BOUND} → $newMax")
+            log("$TAG_CTOR mMaxBound ${PrefsManager.DEFAULT_MAX_BOUND} → $newMax")
             TileServicesHook.setMaxBound(tileServices, newMax)
         }
     }
@@ -109,9 +112,7 @@ class SetMemoryPressureHooker : XposedInterface.Hooker {
             val tileServices = callback.thisObject ?: return
             val memoryPressure = callback.args[0] as? Boolean ?: return
             val newMax = maxOf(PrefsManager.DEFAULT_MAX_BOUND, PrefsManager.getMaxBound())
-            log(
-                "SetMemoryPressureHooker: memoryPressure=$memoryPressure, forcing mMaxBound=$newMax",
-            )
+            log("$TAG_MEMORY pressure=$memoryPressure, forcing mMaxBound=$newMax")
             TileServicesHook.setMaxBound(tileServices, newMax)
         }
     }
@@ -144,12 +145,12 @@ class RecalculateBindAllowanceHooker : XposedInterface.Hooker {
                     if (isAllowed) bound.add(pkg) else unbound.add(pkg)
                 }
 
-                log("BIND_STATE bound=${bound.size}/$currentMax: $bound")
+                log("$TAG_BIND bound=${bound.size}/$currentMax: $bound")
                 if (unbound.isNotEmpty()) {
-                    log("BIND_STATE unbound=${unbound.size}: $unbound")
+                    log("$TAG_BIND unbound=${unbound.size}: $unbound")
                 }
             }.onFailure {
-                log("RecalculateBindAllowanceHooker: error: ${it.message}")
+                log("$TAG_BIND error: ${it.message}")
             }
         }
 
