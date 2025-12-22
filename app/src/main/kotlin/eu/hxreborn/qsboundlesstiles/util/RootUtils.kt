@@ -2,6 +2,8 @@
 package eu.hxreborn.qsboundlesstiles.util
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
@@ -19,16 +21,22 @@ object RootUtils {
     suspend fun getActiveQsTileCount(): Int =
         withContext(Dispatchers.IO) {
             runCatching {
-                val cmd = "settings get secure sysui_qs_tiles"
-                val p = ProcessBuilder("su", "-c", cmd).redirectErrorStream(true).start()
-                p.inputStream.bufferedReader().use { reader ->
-                    if (!p.waitFor(DEFAULT_TIMEOUT.inWholeMilliseconds, TimeUnit.MILLISECONDS)) {
-                        p.destroyForcibly()
-                        return@runCatching 0
+                coroutineScope {
+                    val p = ProcessBuilder("su", "-c", "settings get secure sysui_qs_tiles")
+                        .redirectErrorStream(true).start()
+                    // Read stdout concurrently to avoid pipe buffer deadlock
+                    val outputDeferred = async(Dispatchers.IO) {
+                        p.inputStream.bufferedReader().use { it.readText().trim() }
                     }
-                    if (p.exitValue() != 0) return@runCatching 0
-                    val tileSpec = reader.readText().trim()
-                    if (tileSpec == "null" || tileSpec.isBlank()) return@runCatching 0
+                    val completed = p.waitFor(DEFAULT_TIMEOUT.inWholeMilliseconds, TimeUnit.MILLISECONDS)
+                    if (!completed) {
+                        p.destroyForcibly()
+                        outputDeferred.cancel()
+                        return@coroutineScope 0
+                    }
+                    if (p.exitValue() != 0) return@coroutineScope 0
+                    val tileSpec = outputDeferred.await()
+                    if (tileSpec == "null" || tileSpec.isBlank()) return@coroutineScope 0
                     tileSpec.split(",").count { it.startsWith("custom(") }
                 }
             }.getOrDefault(0)
@@ -41,13 +49,19 @@ object RootUtils {
     ): Boolean =
         withContext(Dispatchers.IO) {
             runCatching {
-                val p = ProcessBuilder("su", "-c", cmd).redirectErrorStream(true).start()
-                p.inputStream.bufferedReader().use { reader ->
-                    if (!p.waitFor(timeout.inWholeMilliseconds, TimeUnit.MILLISECONDS)) {
-                        p.destroyForcibly()
-                        return@runCatching false
+                coroutineScope {
+                    val p = ProcessBuilder("su", "-c", cmd).redirectErrorStream(true).start()
+                    // Read stdout concurrently to avoid pipe buffer deadlock
+                    val outputDeferred = async(Dispatchers.IO) {
+                        p.inputStream.bufferedReader().use { it.readText() }
                     }
-                    p.exitValue() == 0 && stdoutOk(reader.readText())
+                    val completed = p.waitFor(timeout.inWholeMilliseconds, TimeUnit.MILLISECONDS)
+                    if (!completed) {
+                        p.destroyForcibly()
+                        outputDeferred.cancel()
+                        return@coroutineScope false
+                    }
+                    p.exitValue() == 0 && stdoutOk(outputDeferred.await())
                 }
             }.getOrDefault(false)
         }

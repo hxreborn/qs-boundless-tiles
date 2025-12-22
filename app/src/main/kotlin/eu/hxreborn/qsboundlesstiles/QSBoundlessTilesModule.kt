@@ -19,7 +19,7 @@ class QSBoundlessTilesModule(
     }
 
     override fun onPackageLoaded(param: PackageLoadedParam) {
-        if (!param.isFirstPackage || param.packageName != SYSTEMUI_PACKAGE || hooked) return
+        if (param.packageName != SYSTEMUI_PACKAGE || hooked) return
         hooked = true
 
         log("SystemUI loaded, hooking tile services...")

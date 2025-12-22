@@ -122,6 +122,7 @@ class SetMemoryPressureHooker : XposedInterface.Hooker {
 @XposedHooker
 class RecalculateBindAllowanceHooker : XposedInterface.Hooker {
     companion object {
+        private var servicesField: Field? = null
         private var bindAllowedField: Field? = null
         private var stateManagerField: Field? = null
         private var intentField: Field? = null
@@ -133,17 +134,19 @@ class RecalculateBindAllowanceHooker : XposedInterface.Hooker {
             val currentMax = TileServicesHook.getMaxBound(tileServices)
 
             runCatching {
-                val servicesField = tileServices.javaClass.getDeclaredField("mServices")
-                servicesField.isAccessible = true
-                val services = servicesField.get(tileServices) as? Map<*, *> ?: return
+                if (servicesField == null) {
+                    servicesField = tileServices.javaClass.getDeclaredField("mServices")
+                    servicesField!!.isAccessible = true
+                }
+                val services = servicesField?.get(tileServices) as? Map<*, *> ?: return
 
                 val bound = mutableListOf<String>()
                 val unbound = mutableListOf<String>()
 
                 for ((_, manager) in services) {
-                    val pkg = getPackageName(manager!!) ?: "unknown"
-                    val isAllowed = isBindAllowed(manager)
-                    if (isAllowed) bound.add(pkg) else unbound.add(pkg)
+                    manager ?: continue
+                    val pkg = getPackageName(manager) ?: "unknown"
+                    if (isBindAllowed(manager)) bound.add(pkg) else unbound.add(pkg)
                 }
 
                 log("$TAG_BIND bound=${bound.size}/$currentMax: $bound")
@@ -161,7 +164,7 @@ class RecalculateBindAllowanceHooker : XposedInterface.Hooker {
                     bindAllowedField = manager.javaClass.getDeclaredField("mBindAllowed")
                     bindAllowedField!!.isAccessible = true
                 }
-                bindAllowedField!!.getBoolean(manager)
+                bindAllowedField?.getBoolean(manager) ?: false
             }.getOrDefault(false)
 
         private fun getPackageName(manager: Any): String? =
@@ -170,14 +173,13 @@ class RecalculateBindAllowanceHooker : XposedInterface.Hooker {
                     stateManagerField = manager.javaClass.getDeclaredField("mStateManager")
                     stateManagerField!!.isAccessible = true
                 }
-                val stateManager = stateManagerField!!.get(manager) ?: return@runCatching null
+                val stateManager = stateManagerField?.get(manager) ?: return@runCatching null
 
                 if (intentField == null) {
                     intentField = stateManager.javaClass.getDeclaredField("mIntent")
                     intentField!!.isAccessible = true
                 }
-                val intent = intentField!!.get(stateManager) as? android.content.Intent
-                intent?.component?.packageName
+                (intentField?.get(stateManager) as? android.content.Intent)?.component?.packageName
             }.getOrNull()
     }
 }
