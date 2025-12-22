@@ -93,8 +93,8 @@ class TileServicesConstructorHooker : XposedInterface.Hooker {
             }
             val tileServices = callback.thisObject ?: return
             val userMax = PrefsManager.getMaxBound()
-            val newMax = maxOf(3, userMax)
-            log("TileServicesConstructorHooker: mMaxBound 3 → $newMax")
+            val newMax = maxOf(PrefsManager.DEFAULT_MAX_BOUND, userMax)
+            log("TileServicesConstructorHooker: mMaxBound ${PrefsManager.DEFAULT_MAX_BOUND} → $newMax")
             TileServicesHook.setMaxBound(tileServices, newMax)
         }
     }
@@ -109,7 +109,7 @@ class SetMemoryPressureHooker : XposedInterface.Hooker {
             if (!PrefsManager.isMasterEnabled()) return
             val tileServices = callback.thisObject ?: return
             val memoryPressure = callback.args[0] as? Boolean ?: return
-            val newMax = maxOf(3, PrefsManager.getMaxBound())
+            val newMax = maxOf(PrefsManager.DEFAULT_MAX_BOUND, PrefsManager.getMaxBound())
             log(
                 "SetMemoryPressureHooker: memoryPressure=$memoryPressure, forcing mMaxBound=$newMax",
             )
