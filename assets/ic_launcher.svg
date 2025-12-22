@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?><!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg width="100%" height="100%" viewBox="0 0 512 512" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:1.5;">
+    <!-- Background - Deep Charcoal -->
+    <circle cx="256" cy="256" r="256" style="fill:#1A1C1E;"/>
+
+    <!-- Top Right Tile - Light Blue Primary Container -->
+    <path d="M238.92,235.367l0,-121.367l197.176,0l0,121.367l-197.176,0Z" style="fill:#D1E4FF;fill-rule:nonzero;"/>
+    <path d="M267.344,206.943l140.324,0l0,-64.514l-140.324,0l0,64.514Z" style="fill:#1A1C1E;fill-rule:nonzero;"/>
+
+    <!-- Top Left Tile - Light Blue Primary Container -->
+    <path d="M76,235.367l0,-121.367l121.367,0l0,121.367l-121.367,0Z" style="fill:#D1E4FF;fill-rule:nonzero;"/>
+    <path d="M104.429,206.943l64.514,0l0,-64.514l-64.514,0l0,64.514Z" style="fill:#1A1C1E;fill-rule:nonzero;"/>
+
+    <!-- Bottom Left Tile - Muted Steel Secondary Container -->
+    <path d="M76,398.287l0,-121.367l178.224,0l0,121.367l-178.224,0Z" style="fill:#BAC7DB;fill-rule:nonzero;"/>
+    <path d="M104.429,369.858l121.371,0l0,-64.514l-121.371,0l0,64.514Z" style="fill:#1A1C1E;fill-rule:nonzero;"/>
+
+    <!-- Speedometer Body - Light Blue Accent -->
+    <path d="M366,259.134c9.003,0 17.87,1.33 26.6,3.99c8.73,2.66 16.505,6.377 23.326,11.151l-24.144,16.369c-4.501,-2.046 -8.73,-3.513 -12.686,-4.399c-3.956,-0.887 -8.321,-1.33 -13.095,-1.33c-17.188,0 -31.988,6.138 -44.401,18.413c-12.413,12.277 -18.62,27.146 -18.62,44.608c0,5.729 0.716,11.015 2.148,15.858c1.432,4.843 3.444,9.651 6.036,14.425l109.673,0c3.137,-5.184 5.286,-10.162 6.445,-14.937c1.159,-4.774 1.739,-10.162 1.739,-16.164c0,-4.092 -0.443,-8.253 -1.33,-12.481c-0.887,-4.229 -2.285,-8.526 -4.195,-12.891l16.164,-23.735c4.911,6.957 8.662,14.664 11.254,23.121c2.592,8.457 3.888,16.983 3.888,25.577c0,8.185 -1.024,16.152 -3.073,23.903c-2.049,7.751 -5.048,15.129 -8.999,22.135c-2.319,3.683 -5.28,6.479 -8.882,8.389c-3.601,1.91 -7.393,2.865 -11.374,2.865l-112.947,0c-3.956,0 -7.844,-1.023 -11.663,-3.069c-3.819,-2.046 -6.684,-4.774 -8.594,-8.185c-3.683,-6.548 -6.616,-13.607 -8.798,-21.177c-2.183,-7.571 -3.274,-15.45 -3.274,-23.639c0,-12.136 2.324,-23.586 6.973,-34.348c4.647,-10.764 10.993,-20.191 19.035,-28.282c8.041,-8.092 17.448,-14.476 28.22,-19.152c10.772,-4.676 22.297,-7.014 34.574,-7.014Z" style="fill:#D3E1FF;fill-rule:nonzero;"/>
+
+    <!-- Speedometer Needle - Google Blue (eye-catching accent) -->
+    <path d="M353.314,360.213c3.208,3.274 7.352,4.877 12.432,4.808c5.08,-0.068 8.984,-1.944 11.712,-5.627l51.153,-74.07l-74.07,51.153c-3.683,2.728 -5.627,6.564 -5.831,11.507c-0.205,4.945 1.33,9.021 4.604,12.228Z" style="fill:#4285F4;fill-rule:nonzero;"/>
+</svg>
