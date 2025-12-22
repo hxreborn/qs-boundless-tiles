@@ -48,6 +48,7 @@
     <string name="restart_systemui_no_root">Root access required to restart SystemUI</string>
     <string name="restart_systemui_success">SystemUI restarted</string>
     <string name="restart_systemui_failed">Failed to restart SystemUI</string>
+    <string name="systemui_still_restarting">SystemUI still restarting</string>
 
     <!-- Feedback Card -->
     <string name="feedback_title">Having trouble?</string>

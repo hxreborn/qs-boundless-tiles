@@ -24,6 +24,11 @@ import eu.hxreborn.qsboundlesstiles.util.RootUtils
 import io.github.libxposed.service.XposedService
 import io.github.libxposed.service.XposedServiceHelper
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.coroutines.resume
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 import com.google.android.material.R as M
 
 class MainActivity :
@@ -31,7 +36,11 @@ class MainActivity :
     XposedServiceHelper.OnServiceListener {
     private lateinit var binding: ActivityMainBinding
     private var xposedService: XposedService? = null
+
+    // Syncs with hooked SystemUI via libxposed RemotePreferences
     private var remotePrefs: SharedPreferences? = null
+
+    // Requires root to read sysui_qs_tiles, 0 if unavailable
     private var activeQsCount: Int = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -162,21 +171,20 @@ class MainActivity :
         updateRootStatus()
     }
 
+    // Aligns tick indicator with slider track position for recommended value
     private fun positionRecommendedTick(recommended: Int) {
         binding.maxBoundSlider.post {
             val slider = binding.maxBoundSlider
             val indicator = binding.recommendedIndicator
 
-            val minValue = slider.valueFrom
-            val maxValue = slider.valueTo
-            val fraction = (recommended - minValue) / (maxValue - minValue)
+            val fraction =
+                (recommended - slider.valueFrom) / (slider.valueTo - slider.valueFrom)
 
-            val trackWidth = slider.trackWidth
-            val sliderLeft = slider.left
+            // Account for slider padding and center the tick
             val trackStart =
-                sliderLeft + slider.paddingStart +
-                    (slider.width - slider.paddingStart - slider.paddingEnd - trackWidth) / 2
-            val tickX = trackStart + (trackWidth * fraction) - (indicator.width / 2f)
+                slider.left + slider.paddingStart +
+                    (slider.width - slider.paddingStart - slider.paddingEnd - slider.trackWidth) / 2
+            val tickX = trackStart + (slider.trackWidth * fraction) - (indicator.width / 2f)
 
             indicator.translationX = tickX
         }
@@ -386,12 +394,30 @@ class MainActivity :
             Toast.makeText(this@MainActivity, msg, Toast.LENGTH_SHORT).show()
 
             if (success) {
-                kotlinx.coroutines.delay(2000)
+                val rebound = awaitSystemUiRebind()
                 updateStatusCard()
                 loadPrefs()
+                if (!rebound) {
+                    Toast.makeText(this@MainActivity, R.string.systemui_still_restarting, Toast.LENGTH_SHORT).show()
+                }
             }
         }
     }
+
+    private suspend fun awaitSystemUiRebind(timeout: Duration = 5.seconds): Boolean =
+        withTimeoutOrNull(timeout) {
+            suspendCancellableCoroutine { cont ->
+                val listener = object : XposedServiceHelper.OnServiceListener {
+                    override fun onServiceBind(service: XposedService) {
+                        QSBoundlessTilesApp.removeServiceListener(this)
+                        if (cont.isActive) cont.resume(true)
+                    }
+                    override fun onServiceDied(service: XposedService) = Unit
+                }
+                QSBoundlessTilesApp.addServiceListener(listener)
+                cont.invokeOnCancellation { QSBoundlessTilesApp.removeServiceListener(listener) }
+            }
+        } ?: false
 
     private fun getThemeColor(attrResId: Int): Int =
         obtainStyledAttributes(intArrayOf(attrResId)).use { it.getColor(0, 0) }
@@ -404,6 +430,7 @@ class MainActivity :
     )
 
     companion object {
+        // Headroom added to active tile count for recommended limit
         private const val DEFAULT_AUTO_BUFFER = 2
         private const val GITHUB_ISSUES_URL =
             "https://github.com/hxreborn/qs-boundless-tiles/issues"
