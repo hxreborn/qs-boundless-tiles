@@ -302,8 +302,6 @@ class MainActivity :
         return true
     }
 
-    override fun onPrepareOptionsMenu(menu: Menu): Boolean = super.onPrepareOptionsMenu(menu)
-
     override fun onOptionsItemSelected(item: MenuItem): Boolean =
         when (item.itemId) {
             R.id.action_apply_recommended -> {
