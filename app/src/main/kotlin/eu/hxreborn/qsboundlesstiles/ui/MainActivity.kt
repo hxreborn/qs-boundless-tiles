@@ -83,7 +83,7 @@ class MainActivity :
     }
 
     private fun getMaxBound(): Int =
-        remotePrefs?.getInt("max_bound", PrefsManager.DEFAULT_MAX_BOUND)
+        remotePrefs?.getInt(PrefsManager.KEY_MAX_BOUND, PrefsManager.DEFAULT_MAX_BOUND)
             ?: PrefsManager.DEFAULT_MAX_BOUND
 
     private fun refreshActiveQsCount() {
@@ -95,7 +95,7 @@ class MainActivity :
 
     private fun setMaxBound(value: Int) {
         val clamped = value.coerceIn(PrefsManager.DEFAULT_MAX_BOUND, PrefsManager.MAX_BOUND)
-        remotePrefs?.edit { putInt("max_bound", clamped) }
+        remotePrefs?.edit { putInt(PrefsManager.KEY_MAX_BOUND, clamped) }
     }
 
     // Updates UI after maxBound change; skipSlider=true when called from slider listener

@@ -6,6 +6,7 @@ import io.github.libxposed.api.XposedInterface
 
 object PrefsManager {
     const val PREFS_GROUP = "settings"
+    const val KEY_MAX_BOUND = "max_bound"
     const val DEFAULT_MAX_BOUND = 3
     const val MAX_BOUND = 30
 
@@ -23,7 +24,7 @@ object PrefsManager {
             // Hooks read from cache, listener keeps it in sync
             remotePrefs?.registerOnSharedPreferenceChangeListener { _, key ->
                 log("PrefsManager: preference changed: $key")
-                if (key == "max_bound") refreshCache()
+                if (key == KEY_MAX_BOUND) refreshCache()
             }
 
             log("PrefsManager.init() done, maxBound=$maxBoundCache")
@@ -42,7 +43,7 @@ object PrefsManager {
         runCatching {
             maxBoundCache =
                 prefs
-                    .getInt("max_bound", DEFAULT_MAX_BOUND)
+                    .getInt(KEY_MAX_BOUND, DEFAULT_MAX_BOUND)
                     .coerceIn(DEFAULT_MAX_BOUND, MAX_BOUND)
             log("refreshCache() success: maxBound=$maxBoundCache")
         }.onFailure {
