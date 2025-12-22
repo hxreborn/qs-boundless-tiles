@@ -98,6 +98,18 @@ class MainActivity :
         remotePrefs?.edit { putInt("max_bound", clamped) }
     }
 
+    // Updates UI after maxBound change; skipSlider=true when called from slider listener
+    private fun applyMaxBound(
+        value: Int,
+        skipSlider: Boolean = false,
+    ) {
+        setMaxBound(value)
+        if (!skipSlider) binding.maxBoundSlider.value = value.toFloat()
+        binding.targetLimit.text = value.toString()
+        updateStatusLine(value, activeQsCount)
+        updateStatusCard()
+    }
+
     private fun updateStatusCard() {
         val isActive = xposedService != null
 
@@ -239,13 +251,7 @@ class MainActivity :
 
     private fun setupSlider() {
         binding.maxBoundSlider.addOnChangeListener { _, value, fromUser ->
-            if (fromUser) {
-                val intValue = value.toInt()
-                setMaxBound(intValue)
-                binding.targetLimit.text = intValue.toString()
-                updateStatusLine(intValue, activeQsCount)
-                updateStatusCard()
-            }
+            if (fromUser) applyMaxBound(value.toInt(), skipSlider = true)
         }
 
         binding.maxBoundSlider.addOnSliderTouchListener(
@@ -280,11 +286,7 @@ class MainActivity :
                     getString(R.string.limit_changed, oldValue, newValue),
                     Snackbar.LENGTH_LONG,
                 ).setAction(R.string.undo) {
-                    binding.maxBoundSlider.value = oldValue.toFloat()
-                    setMaxBound(oldValue)
-                    binding.targetLimit.text = oldValue.toString()
-                    updateStatusLine(oldValue, activeQsCount)
-                    updateStatusCard()
+                    applyMaxBound(oldValue)
                 }
         currentSnackbar?.show()
     }
@@ -340,11 +342,7 @@ class MainActivity :
             .setTitle(R.string.apply_recommended)
             .setMessage(getString(R.string.apply_recommended_confirm, recommended))
             .setPositiveButton(android.R.string.ok) { _, _ ->
-                setMaxBound(recommended)
-                binding.maxBoundSlider.value = recommended.toFloat()
-                binding.targetLimit.text = recommended.toString()
-                updateStatusLine(recommended, activeQsCount)
-                updateStatusCard()
+                applyMaxBound(recommended)
                 Toast.makeText(this, R.string.apply_recommended_done, Toast.LENGTH_SHORT).show()
             }.setNegativeButton(android.R.string.cancel, null)
             .show()
@@ -355,12 +353,7 @@ class MainActivity :
             .setTitle(R.string.reset_stock)
             .setMessage(R.string.reset_stock_confirm)
             .setPositiveButton(android.R.string.ok) { _, _ ->
-                val stockValue = PrefsManager.DEFAULT_MAX_BOUND
-                setMaxBound(stockValue)
-                binding.maxBoundSlider.value = stockValue.toFloat()
-                binding.targetLimit.text = stockValue.toString()
-                updateStatusLine(stockValue, activeQsCount)
-                updateStatusCard()
+                applyMaxBound(PrefsManager.DEFAULT_MAX_BOUND)
                 Toast.makeText(this, R.string.reset_stock_done, Toast.LENGTH_SHORT).show()
             }.setNegativeButton(android.R.string.cancel, null)
             .show()
