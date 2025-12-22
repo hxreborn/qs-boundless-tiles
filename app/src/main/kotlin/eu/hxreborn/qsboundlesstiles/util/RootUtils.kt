@@ -20,15 +20,17 @@ object RootUtils {
         withContext(Dispatchers.IO) {
             runCatching {
                 val cmd = "settings get secure sysui_qs_tiles"
-                val p = ProcessBuilder("su", "-c", cmd).start()
-                if (!p.waitFor(DEFAULT_TIMEOUT.inWholeMilliseconds, TimeUnit.MILLISECONDS)) {
-                    p.destroyForcibly()
-                    return@runCatching 0
+                val p = ProcessBuilder("su", "-c", cmd).redirectErrorStream(true).start()
+                p.inputStream.bufferedReader().use { reader ->
+                    if (!p.waitFor(DEFAULT_TIMEOUT.inWholeMilliseconds, TimeUnit.MILLISECONDS)) {
+                        p.destroyForcibly()
+                        return@runCatching 0
+                    }
+                    if (p.exitValue() != 0) return@runCatching 0
+                    val tileSpec = reader.readText().trim()
+                    if (tileSpec == "null" || tileSpec.isBlank()) return@runCatching 0
+                    tileSpec.split(",").count { it.startsWith("custom(") }
                 }
-                if (p.exitValue() != 0) return@runCatching 0
-                val tileSpec = p.inputStream.bufferedReader().use { it.readText().trim() }
-                if (tileSpec == "null" || tileSpec.isBlank()) return@runCatching 0
-                tileSpec.split(",").count { it.startsWith("custom(") }
             }.getOrDefault(0)
         }
 
@@ -39,12 +41,14 @@ object RootUtils {
     ): Boolean =
         withContext(Dispatchers.IO) {
             runCatching {
-                val p = ProcessBuilder("su", "-c", cmd).start()
-                if (!p.waitFor(timeout.inWholeMilliseconds, TimeUnit.MILLISECONDS)) {
-                    p.destroyForcibly()
-                    return@runCatching false
+                val p = ProcessBuilder("su", "-c", cmd).redirectErrorStream(true).start()
+                p.inputStream.bufferedReader().use { reader ->
+                    if (!p.waitFor(timeout.inWholeMilliseconds, TimeUnit.MILLISECONDS)) {
+                        p.destroyForcibly()
+                        return@runCatching false
+                    }
+                    p.exitValue() == 0 && stdoutOk(reader.readText())
                 }
-                p.exitValue() == 0 && stdoutOk(p.inputStream.bufferedReader().use { it.readText() })
             }.getOrDefault(false)
         }
 }
