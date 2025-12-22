@@ -3,30 +3,21 @@ package eu.hxreborn.qsboundlesstiles.scanner
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.provider.Settings
 import android.service.quicksettings.TileService
 import android.util.Log
-import eu.hxreborn.qsboundlesstiles.prefs.AppPrefsHelper
 
 object TileScanner {
     private const val TAG = "QSBoundlessTiles"
-
     private val SYSTEM_PREFIXES = listOf("com.android.", "com.google.", "android.")
 
-    data class TileInfo(
-        val activeInQs: Int,
-        val availableApps: Int,
-    )
-
-    fun getTileInfo(context: Context): TileInfo {
-        val activeCount = getActiveQsTileCount(context)
-        val availableCount = getThirdPartyTileCount(context)
-        return TileInfo(activeInQs = activeCount, availableApps = availableCount)
-    }
-
+    // Returns 0 on Android 14+ due to SecurityException (sysui_qs_tiles restricted to SDK 33)
     fun getActiveQsTileCount(context: Context): Int =
-        AppPrefsHelper.getActiveQsCount(context).also {
-            Log.d(TAG, "Active QS tiles (from prefs): $it")
-        }
+        runCatching {
+            val tileSpec = Settings.Secure.getString(context.contentResolver, "sysui_qs_tiles")
+                ?: return@runCatching 0
+            tileSpec.split(",").count { it.startsWith("custom(") }
+        }.getOrDefault(0)
 
     fun getThirdPartyTileCount(context: Context): Int = getThirdPartyTilePackages(context).size
 

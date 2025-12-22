@@ -16,6 +16,22 @@ object RootUtils {
     suspend fun restartSystemUI(): Boolean =
         runAsRoot("killall com.android.systemui", timeout = 10.seconds)
 
+    suspend fun getActiveQsTileCount(): Int =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val cmd = "settings get secure sysui_qs_tiles"
+                val p = ProcessBuilder("su", "-c", cmd).start()
+                if (!p.waitFor(DEFAULT_TIMEOUT.inWholeMilliseconds, TimeUnit.MILLISECONDS)) {
+                    p.destroyForcibly()
+                    return@runCatching 0
+                }
+                if (p.exitValue() != 0) return@runCatching 0
+                val tileSpec = p.inputStream.bufferedReader().use { it.readText().trim() }
+                if (tileSpec == "null" || tileSpec.isBlank()) return@runCatching 0
+                tileSpec.split(",").count { it.startsWith("custom(") }
+            }.getOrDefault(0)
+        }
+
     private suspend fun runAsRoot(
         cmd: String,
         timeout: Duration,
