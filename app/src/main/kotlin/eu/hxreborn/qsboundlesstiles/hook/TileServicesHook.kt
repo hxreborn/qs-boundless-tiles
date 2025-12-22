@@ -36,13 +36,14 @@ object TileServicesHook {
             log("$TAG Could not read constants: ${it.message}")
         }
 
-        maxBoundField = runCatching {
-            tileServicesClass.getDeclaredField("mMaxBound").apply { isAccessible = true }
-        }.onSuccess {
-            log("$TAG Found mMaxBound field")
-        }.onFailure {
-            log("$TAG mMaxBound not found, aborting: ${it.message}")
-        }.getOrNull()
+        maxBoundField =
+            runCatching {
+                tileServicesClass.getDeclaredField("mMaxBound").apply { isAccessible = true }
+            }.onSuccess {
+                log("$TAG Found mMaxBound field")
+            }.onFailure {
+                log("$TAG mMaxBound not found, aborting: ${it.message}")
+            }.getOrNull()
 
         if (maxBoundField == null) return
 

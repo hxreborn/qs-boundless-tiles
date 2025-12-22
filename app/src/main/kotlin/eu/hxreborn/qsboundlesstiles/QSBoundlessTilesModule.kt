@@ -35,7 +35,6 @@ class QSBoundlessTilesModule(
     }
 
     companion object {
-        private const val TAG = "QSBoundlessTiles"
         private const val SYSTEMUI_PACKAGE = "com.android.systemui"
         private var hooked = false
 
@@ -43,13 +42,7 @@ class QSBoundlessTilesModule(
             msg: String,
             t: Throwable? = null,
         ) {
-            t?.also {
-                module.log(msg, it)
-                android.util.Log.e(TAG, msg, it)
-            } ?: run {
-                module.log(msg)
-                android.util.Log.d(TAG, msg)
-            }
+            if (t != null) module.log(msg, t) else module.log(msg)
         }
     }
 }

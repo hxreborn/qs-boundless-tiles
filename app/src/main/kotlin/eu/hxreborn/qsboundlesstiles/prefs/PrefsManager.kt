@@ -40,8 +40,10 @@ object PrefsManager {
             }
 
         runCatching {
-            maxBoundCache = prefs.getInt("max_bound", DEFAULT_MAX_BOUND)
-                .coerceIn(DEFAULT_MAX_BOUND, MAX_BOUND)
+            maxBoundCache =
+                prefs
+                    .getInt("max_bound", DEFAULT_MAX_BOUND)
+                    .coerceIn(DEFAULT_MAX_BOUND, MAX_BOUND)
             log("refreshCache() success: maxBound=$maxBoundCache")
         }.onFailure {
             log("refreshCache() failed", it)
