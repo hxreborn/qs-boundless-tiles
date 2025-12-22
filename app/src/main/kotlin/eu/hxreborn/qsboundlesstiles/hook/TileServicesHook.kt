@@ -48,6 +48,7 @@ object TileServicesHook {
             log("TileServicesHook: Hooked constructor with ${constructor.parameterCount} params")
         }
 
+        // Android lowers mMaxBound under memory pressure; override to maintain user's limit
         tileServicesClass.declaredMethods
             .find { it.name == "setMemoryPressure" && it.parameterCount == 1 }
             ?.let {
@@ -55,6 +56,7 @@ object TileServicesHook {
                 log("TileServicesHook: Hooked setMemoryPressure")
             }
 
+        // Diagnostic hook: logs which tiles are bound vs unbound after each recalculation
         tileServicesClass.declaredMethods
             .find { it.name == "recalculateBindAllowance" && it.parameterCount == 0 }
             ?.let {

@@ -9,6 +9,7 @@ import android.view.Menu
 import android.view.MenuItem
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.edit
 import androidx.core.content.res.use
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -82,7 +83,7 @@ class MainActivity :
 
     private fun setMaxBound(value: Int) {
         val clamped = value.coerceIn(PrefsManager.DEFAULT_MAX_BOUND, PrefsManager.MAX_BOUND)
-        remotePrefs?.edit()?.putInt("max_bound", clamped)?.apply()
+        remotePrefs?.edit { putInt("max_bound", clamped) }
     }
 
     private fun updateStatusCard() {
