@@ -38,6 +38,7 @@
     <string name="apply_recommended">Apply recommended</string>
     <string name="apply_recommended_confirm">Set limit to %d (active tiles + buffer)?</string>
     <string name="apply_recommended_done">Applied recommended settings</string>
+    <string name="apply_recommended_no_root">Root required to detect active tiles</string>
     <string name="reset_stock">Reset to stock</string>
     <string name="reset_stock_confirm">Reset limit to 3 (Android default)?</string>
     <string name="reset_stock_done">Reset to stock</string>

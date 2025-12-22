@@ -325,6 +325,11 @@ class MainActivity :
         }
 
     private fun showApplyRecommendedDialog() {
+        if (activeQsCount <= 0) {
+            Toast.makeText(this, R.string.apply_recommended_no_root, Toast.LENGTH_LONG).show()
+            return
+        }
+
         val recommended =
             (activeQsCount + DEFAULT_AUTO_BUFFER).coerceIn(
                 PrefsManager.DEFAULT_MAX_BOUND,
