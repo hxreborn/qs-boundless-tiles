@@ -337,7 +337,9 @@ class MainActivity :
             .setMessage(getString(R.string.apply_recommended_confirm, recommended))
             .setPositiveButton(android.R.string.ok) { _, _ ->
                 setMaxBound(recommended)
-                loadPrefs()
+                binding.maxBoundSlider.value = recommended.toFloat()
+                binding.targetLimit.text = recommended.toString()
+                updateStatusLine(recommended, activeQsCount)
                 updateStatusCard()
                 Toast.makeText(this, R.string.apply_recommended_done, Toast.LENGTH_SHORT).show()
             }.setNegativeButton(android.R.string.cancel, null)
@@ -349,8 +351,11 @@ class MainActivity :
             .setTitle(R.string.reset_stock)
             .setMessage(R.string.reset_stock_confirm)
             .setPositiveButton(android.R.string.ok) { _, _ ->
-                setMaxBound(PrefsManager.DEFAULT_MAX_BOUND)
-                loadPrefs()
+                val stockValue = PrefsManager.DEFAULT_MAX_BOUND
+                setMaxBound(stockValue)
+                binding.maxBoundSlider.value = stockValue.toFloat()
+                binding.targetLimit.text = stockValue.toString()
+                updateStatusLine(stockValue, activeQsCount)
                 updateStatusCard()
                 Toast.makeText(this, R.string.reset_stock_done, Toast.LENGTH_SHORT).show()
             }.setNegativeButton(android.R.string.cancel, null)
