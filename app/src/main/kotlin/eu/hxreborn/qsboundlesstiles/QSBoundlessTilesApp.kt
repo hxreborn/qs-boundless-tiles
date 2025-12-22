@@ -3,6 +3,7 @@ package eu.hxreborn.qsboundlesstiles
 import android.app.Application
 import io.github.libxposed.service.XposedService
 import io.github.libxposed.service.XposedServiceHelper
+import java.util.concurrent.CopyOnWriteArrayList
 
 class QSBoundlessTilesApp : Application() {
     override fun onCreate() {
@@ -26,7 +27,7 @@ class QSBoundlessTilesApp : Application() {
         var service: XposedService? = null
             private set
 
-        private val listeners = mutableListOf<XposedServiceHelper.OnServiceListener>()
+        private val listeners = CopyOnWriteArrayList<XposedServiceHelper.OnServiceListener>()
 
         fun addServiceListener(listener: XposedServiceHelper.OnServiceListener) {
             listeners.add(listener)
