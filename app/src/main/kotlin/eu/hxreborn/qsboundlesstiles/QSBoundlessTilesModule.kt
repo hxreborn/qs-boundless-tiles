@@ -1,7 +1,5 @@
 package eu.hxreborn.qsboundlesstiles
 
-import android.os.Handler
-import android.os.Looper
 import eu.hxreborn.qsboundlesstiles.hook.TileServicesHook
 import eu.hxreborn.qsboundlesstiles.prefs.PrefsManager
 import io.github.libxposed.api.XposedInterface
@@ -25,23 +23,13 @@ class QSBoundlessTilesModule(
 
         log("SystemUI loaded, hooking tile services...")
 
-        PrefsManager.init()
-
-        var hooksSucceeded = false
+        PrefsManager.init(this)
 
         runCatching {
             TileServicesHook.hook(param.classLoader)
-            log("TileServices hooked successfully")
-            hooksSucceeded = true
+            log("TileServices hooked successfully, maxBound=${PrefsManager.getMaxBound()}")
         }.onFailure { e ->
             log("Failed to hook TileServices", e)
-        }
-
-        if (hooksSucceeded) {
-            Handler(Looper.getMainLooper()).postDelayed({
-                PrefsManager.passBinder()
-                log("Binder passed to app")
-            }, 2000)
         }
     }
 

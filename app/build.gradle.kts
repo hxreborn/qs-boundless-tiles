@@ -96,6 +96,7 @@ ktlint {
 
 dependencies {
     compileOnly(libs.libxposed.api)
+    implementation(libs.libxposed.service)
 
     // TODO: use version catalog
     implementation("com.google.android.material:material:1.13.0")

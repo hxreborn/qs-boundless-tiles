@@ -4,6 +4,7 @@
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
 
     <application
+        android:name=".QSBoundlessTilesApp"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher"
         android:label="@string/app_name"
@@ -18,13 +19,6 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
-        <!-- ContentProvider for cross-process preference sharing -->
-        <provider
-            android:name=".prefs.PrefsProvider"
-            android:authorities="eu.hxreborn.qsboundlesstiles.prefs"
-            android:exported="true"
-            android:grantUriPermissions="true" />
 
     </application>
 

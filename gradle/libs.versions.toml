@@ -6,6 +6,7 @@ xposed = "100"
 
 [libraries]
 libxposed-api = { group = "io.github.libxposed", name = "api", version.ref = "xposed" }
+libxposed-service = { group = "io.github.libxposed", name = "service", version = "100-1.0.0" }
 
 [plugins]
 agp-app = { id = "com.android.application", version.ref = "agp" }

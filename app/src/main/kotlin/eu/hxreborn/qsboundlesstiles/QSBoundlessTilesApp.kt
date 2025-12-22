@@ -1,0 +1,40 @@
+package eu.hxreborn.qsboundlesstiles
+
+import android.app.Application
+import io.github.libxposed.service.XposedService
+import io.github.libxposed.service.XposedServiceHelper
+
+class QSBoundlessTilesApp : Application() {
+    override fun onCreate() {
+        super.onCreate()
+        XposedServiceHelper.registerListener(
+            object : XposedServiceHelper.OnServiceListener {
+                override fun onServiceBind(svc: XposedService) {
+                    service = svc
+                    listeners.forEach { it.onServiceBind(svc) }
+                }
+
+                override fun onServiceDied(svc: XposedService) {
+                    service = null
+                    listeners.forEach { it.onServiceDied(svc) }
+                }
+            },
+        )
+    }
+
+    companion object {
+        var service: XposedService? = null
+            private set
+
+        private val listeners = mutableListOf<XposedServiceHelper.OnServiceListener>()
+
+        fun addServiceListener(listener: XposedServiceHelper.OnServiceListener) {
+            listeners.add(listener)
+            service?.let { listener.onServiceBind(it) }
+        }
+
+        fun removeServiceListener(listener: XposedServiceHelper.OnServiceListener) {
+            listeners.remove(listener)
+        }
+    }
+}

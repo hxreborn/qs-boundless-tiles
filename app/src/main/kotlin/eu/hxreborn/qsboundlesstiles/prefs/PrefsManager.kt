@@ -1,147 +1,56 @@
 package eu.hxreborn.qsboundlesstiles.prefs
 
-import android.content.Context
-import android.net.Uri
-import android.os.Bundle
-import android.provider.Settings
-import android.util.Log
-import eu.hxreborn.qsboundlesstiles.hook.TileServicesHook
+import android.content.SharedPreferences
+import eu.hxreborn.qsboundlesstiles.QSBoundlessTilesModule.Companion.log
+import io.github.libxposed.api.XposedInterface
 
 object PrefsManager {
-    private const val TAG = "QSBoundlessTiles"
+    private const val PREFS_GROUP = "settings"
 
-    private const val AUTHORITY = "eu.hxreborn.qsboundlesstiles.prefs"
-    private val MASTER_ENABLED_URI = Uri.parse("content://$AUTHORITY/master_enabled")
-    private val MAX_BOUND_URI = Uri.parse("content://$AUTHORITY/max_bound")
-    private val PROVIDER_URI = Uri.parse("content://$AUTHORITY")
+    const val DEFAULT_MAX_BOUND = 3
 
-    private var hookBinder: HookBinder? = null
+    private var remotePrefs: SharedPreferences? = null
 
     private var masterEnabledCache: Boolean = true
-    private var maxBoundCache: Int = AppPrefsHelper.DEFAULT_MAX_BOUND
-    private var lastCacheUpdate: Long = 0
-    private const val CACHE_TTL_MS = 5000L
+    private var maxBoundCache: Int = DEFAULT_MAX_BOUND
 
-    fun init() {
-        Log.d(TAG, "PrefsManager.init() called")
-        hookBinder = HookBinder()
-        refreshCache()
-        Log.d(TAG, "PrefsManager.init() done, master=$masterEnabledCache, maxBound=$maxBoundCache")
-    }
+    fun init(xposed: XposedInterface) {
+        log("PrefsManager.init() called")
 
-    @Suppress("PrivateApi")
-    private fun getSystemContext(): Context? =
         runCatching {
-            val activityThreadClass = Class.forName("android.app.ActivityThread")
-            val method = activityThreadClass.getMethod("currentApplication")
-            method.invoke(null) as? Context
+            remotePrefs = xposed.getRemotePreferences(PREFS_GROUP)
+            refreshCache()
+
+            // Cache updates on pref changes; hooks read from cache on each invocation
+            remotePrefs?.registerOnSharedPreferenceChangeListener { _, key ->
+                log("PrefsManager: preference changed: $key")
+                if (key in listOf("master_enabled", "max_bound")) {
+                    refreshCache()
+                }
+            }
+
+            log("PrefsManager.init() done, master=$masterEnabledCache, maxBound=$maxBoundCache")
         }.onFailure {
-            Log.e(TAG, "Failed to get context via ActivityThread", it)
-        }.getOrNull()
+            log("PrefsManager.init() failed to get remote preferences", it)
+        }
+    }
 
     private fun refreshCache() {
-        Log.d(TAG, "refreshCache() querying ContentProvider...")
-
-        val context =
-            getSystemContext() ?: run {
-                Log.w(TAG, "refreshCache() context is null, cannot query provider")
-                return
-            }
+        val prefs = remotePrefs ?: run {
+            log("refreshCache() remotePrefs is null")
+            return
+        }
 
         runCatching {
-            Log.d(TAG, "refreshCache() got context: ${context.packageName}")
-
-            context.contentResolver.query(MASTER_ENABLED_URI, null, null, null, null)?.use { c ->
-                if (c.moveToFirst()) masterEnabledCache = c.getInt(0) == 1
-            }
-
-            context.contentResolver.query(MAX_BOUND_URI, null, null, null, null)?.use { c ->
-                if (c.moveToFirst()) maxBoundCache = c.getInt(0)
-            }
-
-            lastCacheUpdate = System.currentTimeMillis()
-            Log.d(
-                TAG,
-                "refreshCache() success: master=$masterEnabledCache, maxBound=$maxBoundCache",
-            )
+            masterEnabledCache = prefs.getBoolean("master_enabled", true)
+            maxBoundCache = prefs.getInt("max_bound", DEFAULT_MAX_BOUND)
+            log("refreshCache() success: master=$masterEnabledCache, maxBound=$maxBoundCache")
         }.onFailure {
-            Log.e(TAG, "refreshCache() failed to query provider", it)
+            log("refreshCache() failed", it)
         }
     }
 
-    private fun ensureCacheFresh() {
-        if (System.currentTimeMillis() - lastCacheUpdate > CACHE_TTL_MS) {
-            refreshCache()
-        }
-    }
+    fun isMasterEnabled(): Boolean = masterEnabledCache
 
-    fun isMasterEnabled(): Boolean {
-        ensureCacheFresh()
-        return masterEnabledCache
-    }
-
-    fun getMaxBound(): Int {
-        ensureCacheFresh()
-        return maxBoundCache
-    }
-
-    fun getEffectiveMaxBound(): Int {
-        ensureCacheFresh()
-        Log.d(TAG, "getEffectiveMaxBound() = $maxBoundCache")
-        return maxBoundCache
-    }
-
-    private fun countActiveQsTiles(): Int =
-        runCatching {
-            val context = getSystemContext() ?: return@runCatching 0
-            val tileSpec =
-                Settings.Secure.getString(context.contentResolver, "sysui_qs_tiles")
-                    ?: return@runCatching 0
-
-            tileSpec.split(",").count { it.startsWith("custom(") }.also {
-                Log.d(TAG, "countActiveQsTiles() = $it")
-            }
-        }.onFailure {
-            Log.e(TAG, "countActiveQsTiles() failed", it)
-        }.getOrDefault(0)
-
-    fun passBinder() {
-        val context =
-            getSystemContext() ?: run {
-                Log.w(TAG, "passBinder() context is null")
-                return
-            }
-
-        val binder =
-            hookBinder ?: run {
-                Log.w(TAG, "passBinder() hookBinder is null")
-                return
-            }
-
-        runCatching {
-            val boundLimit = TileServicesHook.activeMaxBound
-            val qsCount = countActiveQsTiles()
-
-            val extras =
-                Bundle().apply {
-                    putBinder(PrefsProvider.ARG_BINDER, binder)
-                    putLong(PrefsProvider.ARG_TIMESTAMP, System.currentTimeMillis())
-                    putInt(PrefsProvider.ARG_BOUND_LIMIT, boundLimit)
-                    putInt(PrefsProvider.ARG_QS_COUNT, qsCount)
-                }
-
-            val result =
-                context.contentResolver.call(
-                    PROVIDER_URI,
-                    PrefsProvider.METHOD_LINK_BINDER,
-                    null,
-                    extras,
-                )
-
-            val success = result?.getBoolean("success", false) ?: false
-            Log.d(TAG, "passBinder() success=$success, boundLimit=$boundLimit, qsCount=$qsCount")
-        }.onFailure {
-            Log.e(TAG, "passBinder() failed", it)
-        }
-    }
+    fun getMaxBound(): Int = maxBoundCache
 }

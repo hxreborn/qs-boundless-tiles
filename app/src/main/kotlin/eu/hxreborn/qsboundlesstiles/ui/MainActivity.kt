@@ -1,6 +1,7 @@
 package eu.hxreborn.qsboundlesstiles.ui
 
 import android.content.Intent
+import android.content.SharedPreferences
 import android.content.res.ColorStateList
 import android.net.Uri
 import android.os.Bundle
@@ -12,16 +13,22 @@ import androidx.core.content.res.use
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
+import eu.hxreborn.qsboundlesstiles.QSBoundlessTilesApp
 import eu.hxreborn.qsboundlesstiles.BuildConfig
 import eu.hxreborn.qsboundlesstiles.R
 import eu.hxreborn.qsboundlesstiles.databinding.ActivityMainBinding
-import eu.hxreborn.qsboundlesstiles.prefs.AppPrefsHelper
+import eu.hxreborn.qsboundlesstiles.prefs.PrefsManager
 import eu.hxreborn.qsboundlesstiles.scanner.TileScanner
 import eu.hxreborn.qsboundlesstiles.util.RootUtils
+import io.github.libxposed.service.XposedService
+import io.github.libxposed.service.XposedServiceHelper
 import kotlinx.coroutines.launch
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener {
     private lateinit var binding: ActivityMainBinding
+    private var xposedService: XposedService? = null
+    private var remotePrefs: SharedPreferences? = null
+    private var activeQsCount: Int = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -30,26 +37,67 @@ class MainActivity : AppCompatActivity() {
         setSupportActionBar(binding.toolbar)
         setupSlider()
         setupFeedback()
+        QSBoundlessTilesApp.addServiceListener(this)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        QSBoundlessTilesApp.removeServiceListener(this)
+    }
+
+    override fun onServiceBind(service: XposedService) {
+        xposedService = service
+        remotePrefs = service.getRemotePreferences(PREFS_GROUP)
+        runOnUiThread {
+            updateStatusCard()
+            loadPrefs()
+        }
+    }
+
+    override fun onServiceDied(service: XposedService) {
+        xposedService = null
+        remotePrefs = null
     }
 
     override fun onResume() {
         super.onResume()
         updateStatusCard()
         loadPrefs()
+        refreshActiveQsCount()
+    }
+
+    private fun getMaxBound(): Int = remotePrefs?.getInt("max_bound", PrefsManager.DEFAULT_MAX_BOUND) ?: PrefsManager.DEFAULT_MAX_BOUND
+
+    private fun getActiveQsCount(): Int = activeQsCount
+
+    private fun refreshActiveQsCount() {
+        lifecycleScope.launch {
+            activeQsCount = RootUtils.getActiveQsTileCount()
+            loadPrefs()
+        }
+    }
+
+    private fun setMaxBound(value: Int) {
+        remotePrefs?.edit()?.putInt("max_bound", value.coerceIn(3, 30))?.apply()
     }
 
     private fun updateStatusCard() {
-        val maxBound = AppPrefsHelper.getMaxBound(this)
-        val injectedLimit = AppPrefsHelper.getHookBoundLimit(this)
-        val isSynced = maxBound == injectedLimit
+        val prefs = remotePrefs
+        val hookAlive = xposedService != null
+        val maxBound = getMaxBound()
 
-        val (titleRes, iconRes, bgColorAttr, contentColorAttr) =
+        // With remote prefs, the hook gets updates via change listener
+        // If service is connected, we consider it synced
+        val isSynced = hookAlive
+
+        val (titleRes, iconRes, bgColorAttr, contentColorAttr, clickable) =
             if (isSynced) {
                 StatusStyle(
                     R.string.systemui_up_to_date,
                     R.drawable.ic_check_circle_24,
                     android.R.attr.colorPrimary,
                     com.google.android.material.R.attr.colorOnPrimary,
+                    false,
                 )
             } else {
                 StatusStyle(
@@ -57,6 +105,7 @@ class MainActivity : AppCompatActivity() {
                     R.drawable.ic_refresh_24,
                     com.google.android.material.R.attr.colorTertiary,
                     com.google.android.material.R.attr.colorOnTertiary,
+                    true,
                 )
             }
 
@@ -80,40 +129,40 @@ class MainActivity : AppCompatActivity() {
             )
         binding.statusCard.statusSubtitle.setTextColor(contentColor)
 
-        if (isSynced) {
-            card.isClickable = false
-            card.setOnClickListener(null)
-        } else {
-            card.isClickable = true
-            card.setOnClickListener { showRestartDialog() }
-        }
+        card.isClickable = clickable
+        card.setOnClickListener(if (clickable) { { showRestartDialog() } } else null)
     }
 
     private fun loadPrefs() {
-        val autoBuffer = AppPrefsHelper.getAutoBuffer(this)
-        val tileInfo = TileScanner.getTileInfo(this)
-        val recommended = tileInfo.activeInQs + autoBuffer
-        val injectedLimit = AppPrefsHelper.getHookBoundLimit(this)
-
-        if (!AppPrefsHelper.isMaxBoundSet(this)) {
-            AppPrefsHelper.setMaxBound(this, injectedLimit)
-        }
-        val maxBound = AppPrefsHelper.getMaxBound(this)
+        val autoBuffer = DEFAULT_AUTO_BUFFER
+        val activeInQs = getActiveQsCount()
+        val availableApps = TileScanner.getThirdPartyTileCount(this)
+        val recommended = activeInQs + autoBuffer
+        val maxBound = getMaxBound()
 
         binding.targetLimit.text = maxBound.toString()
-        binding.systemuiStatus.text = injectedLimit.toString()
+        binding.systemuiStatus.text = maxBound.toString()
 
-        val sliderMax = (tileInfo.availableApps + autoBuffer).coerceAtLeast(10)
+        val sliderMax = (availableApps + autoBuffer).coerceAtLeast(10)
         binding.maxBoundSlider.valueTo = sliderMax.toFloat()
         binding.sliderMaxLabel.text = getString(R.string.slider_max_label, sliderMax)
         val clampedValue = maxBound.coerceIn(3, sliderMax)
         binding.maxBoundSlider.value = clampedValue.toFloat()
 
-        positionRecommendedTick(recommended)
-        updateStatusLine(maxBound, tileInfo.activeInQs)
+        if (activeInQs > 0) {
+            binding.recommendedIndicator.visibility = android.view.View.VISIBLE
+            positionRecommendedTick(recommended)
+        } else {
+            binding.recommendedIndicator.visibility = android.view.View.INVISIBLE
+        }
+        updateStatusLine(maxBound, activeInQs)
 
-        binding.statActiveValue.text = tileInfo.activeInQs.toString()
-        binding.statProvidersValue.text = tileInfo.availableApps.toString()
+        val hasActiveQs = activeInQs > 0
+        binding.statusDivider.visibility = if (hasActiveQs) android.view.View.VISIBLE else android.view.View.GONE
+        binding.statusLineContainer.visibility = if (hasActiveQs) android.view.View.VISIBLE else android.view.View.GONE
+
+        binding.statActiveValue.text = if (activeInQs == 0) "—" else activeInQs.toString()
+        binding.statProvidersValue.text = availableApps.toString()
         updateRootStatus()
     }
 
@@ -190,15 +239,14 @@ class MainActivity : AppCompatActivity() {
     private var currentSnackbar: Snackbar? = null
 
     private fun setupSlider() {
-        previousMaxBound = AppPrefsHelper.getMaxBound(this)
+        previousMaxBound = getMaxBound()
 
         binding.maxBoundSlider.addOnChangeListener { _, value, fromUser ->
             if (fromUser) {
                 val intValue = value.toInt()
-                AppPrefsHelper.setMaxBound(this, intValue)
+                setMaxBound(intValue)
                 binding.targetLimit.text = intValue.toString()
-                val tileInfo = TileScanner.getTileInfo(this)
-                updateStatusLine(intValue, tileInfo.activeInQs)
+                updateStatusLine(intValue, getActiveQsCount())
                 updateStatusCard()
             }
         }
@@ -237,10 +285,9 @@ class MainActivity : AppCompatActivity() {
                     Snackbar.LENGTH_LONG,
                 ).setAction(R.string.undo) {
                     binding.maxBoundSlider.value = oldValue.toFloat()
-                    AppPrefsHelper.setMaxBound(this, oldValue)
+                    setMaxBound(oldValue)
                     binding.targetLimit.text = oldValue.toString()
-                    val tileInfo = TileScanner.getTileInfo(this)
-                    updateStatusLine(oldValue, tileInfo.activeInQs)
+                    updateStatusLine(oldValue, getActiveQsCount())
                     updateStatusCard()
                     previousMaxBound = oldValue
                 }
@@ -283,14 +330,13 @@ class MainActivity : AppCompatActivity() {
         }
 
     private fun showApplyRecommendedDialog() {
-        val tileInfo = TileScanner.getTileInfo(this)
-        val recommended = (tileInfo.activeInQs + AppPrefsHelper.getAutoBuffer(this)).coerceIn(3, 30)
+        val recommended = (getActiveQsCount() + DEFAULT_AUTO_BUFFER).coerceIn(3, 30)
 
         MaterialAlertDialogBuilder(this)
             .setTitle(R.string.apply_recommended)
             .setMessage(getString(R.string.apply_recommended_confirm, recommended))
             .setPositiveButton(android.R.string.ok) { _, _ ->
-                AppPrefsHelper.setMaxBound(this, recommended)
+                setMaxBound(recommended)
                 loadPrefs()
                 updateStatusCard()
                 Toast.makeText(this, R.string.apply_recommended_done, Toast.LENGTH_SHORT).show()
@@ -303,7 +349,7 @@ class MainActivity : AppCompatActivity() {
             .setTitle(R.string.reset_stock)
             .setMessage(R.string.reset_stock_confirm)
             .setPositiveButton(android.R.string.ok) { _, _ ->
-                AppPrefsHelper.setMaxBound(this, 3)
+                setMaxBound(3)
                 loadPrefs()
                 updateStatusCard()
                 Toast.makeText(this, R.string.reset_stock_done, Toast.LENGTH_SHORT).show()
@@ -355,9 +401,12 @@ class MainActivity : AppCompatActivity() {
         val iconRes: Int,
         val bgColorAttr: Int,
         val contentColorAttr: Int,
+        val clickable: Boolean,
     )
 
     companion object {
+        private const val PREFS_GROUP = "settings"
+        private const val DEFAULT_AUTO_BUFFER = 2
         private const val GITHUB_ISSUES_URL =
             "https://github.com/hxreborn/qs-boundless-tiles/issues"
     }
