@@ -14,8 +14,9 @@ object TileScanner {
     // Returns 0 on Android 14+ due to SecurityException (sysui_qs_tiles restricted to SDK 33)
     fun getActiveQsTileCount(context: Context): Int =
         runCatching {
-            val tileSpec = Settings.Secure.getString(context.contentResolver, "sysui_qs_tiles")
-                ?: return@runCatching 0
+            val tileSpec =
+                Settings.Secure.getString(context.contentResolver, "sysui_qs_tiles")
+                    ?: return@runCatching 0
             tileSpec.split(",").count { it.startsWith("custom(") }
         }.getOrDefault(0)
 

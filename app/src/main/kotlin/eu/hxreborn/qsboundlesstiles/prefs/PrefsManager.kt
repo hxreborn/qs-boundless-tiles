@@ -5,9 +5,9 @@ import eu.hxreborn.qsboundlesstiles.QSBoundlessTilesModule.Companion.log
 import io.github.libxposed.api.XposedInterface
 
 object PrefsManager {
-    private const val PREFS_GROUP = "settings"
-
+    const val PREFS_GROUP = "settings"
     const val DEFAULT_MAX_BOUND = 3
+    const val MAX_BOUND = 30
 
     private var remotePrefs: SharedPreferences? = null
 
@@ -36,10 +36,11 @@ object PrefsManager {
     }
 
     private fun refreshCache() {
-        val prefs = remotePrefs ?: run {
-            log("refreshCache() remotePrefs is null")
-            return
-        }
+        val prefs =
+            remotePrefs ?: run {
+                log("refreshCache() remotePrefs is null")
+                return
+            }
 
         runCatching {
             masterEnabledCache = prefs.getBoolean("master_enabled", true)

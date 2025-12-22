@@ -79,7 +79,7 @@ android {
 
     lint {
         abortOnError = true
-        disable.addAll(listOf("PrivateApi", "DiscouragedPrivateApi"))
+        disable.addAll(listOf("PrivateApi", "DiscouragedPrivateApi", "QueryAllPackagesPermission"))
         ignoreTestSources = true
     }
 }
@@ -97,10 +97,8 @@ ktlint {
 dependencies {
     compileOnly(libs.libxposed.api)
     implementation(libs.libxposed.service)
-
-    // TODO: use version catalog
-    implementation("com.google.android.material:material:1.13.0")
-    implementation("androidx.appcompat:appcompat:1.7.1")
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
-    implementation("androidx.core:core-ktx:1.17.0")
+    implementation(libs.material)
+    implementation(libs.appcompat)
+    implementation(libs.lifecycle.runtime)
+    implementation(libs.core.ktx)
 }

@@ -11,11 +11,10 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.res.use
 import androidx.lifecycle.lifecycleScope
-import com.google.android.material.R as M
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
-import eu.hxreborn.qsboundlesstiles.QSBoundlessTilesApp
 import eu.hxreborn.qsboundlesstiles.BuildConfig
+import eu.hxreborn.qsboundlesstiles.QSBoundlessTilesApp
 import eu.hxreborn.qsboundlesstiles.R
 import eu.hxreborn.qsboundlesstiles.databinding.ActivityMainBinding
 import eu.hxreborn.qsboundlesstiles.prefs.PrefsManager
@@ -24,8 +23,11 @@ import eu.hxreborn.qsboundlesstiles.util.RootUtils
 import io.github.libxposed.service.XposedService
 import io.github.libxposed.service.XposedServiceHelper
 import kotlinx.coroutines.launch
+import com.google.android.material.R as M
 
-class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener {
+class MainActivity :
+    AppCompatActivity(),
+    XposedServiceHelper.OnServiceListener {
     private lateinit var binding: ActivityMainBinding
     private var xposedService: XposedService? = null
     private var remotePrefs: SharedPreferences? = null
@@ -48,7 +50,7 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
 
     override fun onServiceBind(service: XposedService) {
         xposedService = service
-        remotePrefs = service.getRemotePreferences(PREFS_GROUP)
+        remotePrefs = service.getRemotePreferences(PrefsManager.PREFS_GROUP)
         runOnUiThread {
             updateStatusCard()
             loadPrefs()
@@ -67,7 +69,9 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
         refreshActiveQsCount()
     }
 
-    private fun getMaxBound(): Int = remotePrefs?.getInt("max_bound", PrefsManager.DEFAULT_MAX_BOUND) ?: PrefsManager.DEFAULT_MAX_BOUND
+    private fun getMaxBound(): Int =
+        remotePrefs?.getInt("max_bound", PrefsManager.DEFAULT_MAX_BOUND)
+            ?: PrefsManager.DEFAULT_MAX_BOUND
 
     private fun getActiveQsCount(): Int = activeQsCount
 
@@ -79,27 +83,29 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
     }
 
     private fun setMaxBound(value: Int) {
-        remotePrefs?.edit()?.putInt("max_bound", value.coerceIn(3, 30))?.apply()
+        val clamped = value.coerceIn(PrefsManager.DEFAULT_MAX_BOUND, PrefsManager.MAX_BOUND)
+        remotePrefs?.edit()?.putInt("max_bound", clamped)?.apply()
     }
 
     private fun updateStatusCard() {
         val isActive = xposedService != null
 
-        val (titleRes, iconRes, bgColorAttr, contentColorAttr) = if (isActive) {
-            StatusStyle(
-                R.string.module_active,
-                R.drawable.ic_check_circle_24,
-                android.R.attr.colorPrimary,
-                M.attr.colorOnPrimary,
-            )
-        } else {
-            StatusStyle(
-                R.string.module_inactive,
-                R.drawable.ic_warning_24,
-                M.attr.colorTertiary,
-                M.attr.colorOnTertiary,
-            )
-        }
+        val (titleRes, iconRes, bgColorAttr, contentColorAttr) =
+            if (isActive) {
+                StatusStyle(
+                    R.string.module_active,
+                    R.drawable.ic_check_circle_24,
+                    android.R.attr.colorPrimary,
+                    M.attr.colorOnPrimary,
+                )
+            } else {
+                StatusStyle(
+                    R.string.module_inactive,
+                    R.drawable.ic_warning_24,
+                    M.attr.colorTertiary,
+                    M.attr.colorOnTertiary,
+                )
+            }
 
         val bgColor = getThemeColor(bgColorAttr)
         val contentColor = getThemeColor(contentColorAttr)
@@ -135,7 +141,7 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
         val sliderMax = (availableApps + autoBuffer).coerceAtLeast(10)
         binding.maxBoundSlider.valueTo = sliderMax.toFloat()
         binding.sliderMaxLabel.text = getString(R.string.slider_max_label, sliderMax)
-        val clampedValue = maxBound.coerceIn(3, sliderMax)
+        val clampedValue = maxBound.coerceIn(PrefsManager.DEFAULT_MAX_BOUND, sliderMax)
         binding.maxBoundSlider.value = clampedValue.toFloat()
 
         if (activeInQs > 0) {
@@ -147,8 +153,10 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
         updateStatusLine(maxBound, activeInQs)
 
         val hasActiveQs = activeInQs > 0
-        binding.statusDivider.visibility = if (hasActiveQs) android.view.View.VISIBLE else android.view.View.GONE
-        binding.statusLineContainer.visibility = if (hasActiveQs) android.view.View.VISIBLE else android.view.View.GONE
+        binding.statusDivider.visibility =
+            if (hasActiveQs) android.view.View.VISIBLE else android.view.View.GONE
+        binding.statusLineContainer.visibility =
+            if (hasActiveQs) android.view.View.VISIBLE else android.view.View.GONE
 
         binding.statActiveValue.text = if (activeInQs == 0) "—" else activeInQs.toString()
         binding.statProvidersValue.text = availableApps.toString()
@@ -319,7 +327,11 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
         }
 
     private fun showApplyRecommendedDialog() {
-        val recommended = (getActiveQsCount() + DEFAULT_AUTO_BUFFER).coerceIn(3, 30)
+        val recommended =
+            (getActiveQsCount() + DEFAULT_AUTO_BUFFER).coerceIn(
+                PrefsManager.DEFAULT_MAX_BOUND,
+                PrefsManager.MAX_BOUND,
+            )
 
         MaterialAlertDialogBuilder(this)
             .setTitle(R.string.apply_recommended)
@@ -338,7 +350,7 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
             .setTitle(R.string.reset_stock)
             .setMessage(R.string.reset_stock_confirm)
             .setPositiveButton(android.R.string.ok) { _, _ ->
-                setMaxBound(3)
+                setMaxBound(PrefsManager.DEFAULT_MAX_BOUND)
                 loadPrefs()
                 updateStatusCard()
                 Toast.makeText(this, R.string.reset_stock_done, Toast.LENGTH_SHORT).show()
@@ -393,7 +405,6 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
     )
 
     companion object {
-        private const val PREFS_GROUP = "settings"
         private const val DEFAULT_AUTO_BUFFER = 2
         private const val GITHUB_ISSUES_URL =
             "https://github.com/hxreborn/qs-boundless-tiles/issues"

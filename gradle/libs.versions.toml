@@ -3,10 +3,18 @@ agp = "8.13.1"
 kotlin = "2.1.21"
 ktlint = "14.0.1"
 xposed = "100"
+material = "1.13.0"
+appcompat = "1.7.1"
+lifecycle = "2.8.7"
+core-ktx = "1.17.0"
 
 [libraries]
 libxposed-api = { group = "io.github.libxposed", name = "api", version.ref = "xposed" }
 libxposed-service = { group = "io.github.libxposed", name = "service", version = "100-1.0.0" }
+material = { group = "com.google.android.material", name = "material", version.ref = "material" }
+appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
+lifecycle-runtime = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycle" }
+core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "core-ktx" }
 
 [plugins]
 agp-app = { id = "com.android.application", version.ref = "agp" }

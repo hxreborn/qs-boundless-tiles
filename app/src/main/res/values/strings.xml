@@ -4,6 +4,8 @@
     <string name="app_desc">Keep Quick Settings tiles responsive by keeping their TileService bound</string>
 
     <!-- Status Card -->
+    <string name="module_active">Module active</string>
+    <string name="module_inactive">Module inactive</string>
     <string name="status_active_subtitle">%1$s (%2$d) \u2014 by hxreborn</string>
 
     <!-- Tile Limit Card -->
@@ -18,8 +20,6 @@
     <string name="stat_providers">Available tile providers</string>
     <string name="stat_providers_caption">Third-party apps with tile services</string>
     <string name="stat_systemui">SystemUI</string>
-    <string name="systemui_up_to_date">Up to date</string>
-    <string name="systemui_restart_required">Restart required</string>
     <string name="systemui_caption">Current active limit in memory</string>
     <string name="stat_root">Root privileges</string>
     <string name="stat_root_caption">Required to restart SystemUI</string>
