@@ -6,55 +6,48 @@ LSPosed module that keeps third-party Quick Settings tiles responsive on Android
 ![Kotlin](https://img.shields.io/badge/Kotlin-2.1.21-7F52FF?style=flat&logo=kotlin&logoColor=white)
 ![Android](https://img.shields.io/badge/API-33%2B-3DDC84?logo=android&logoColor=white)
 
-## Overview
+## Background
 
-Android stock `SystemUI` [limits concurrent tile bindings to 3](https://android.googlesource.com/platform/frameworks/base/+/d5a204f16e7c71ffdbc6c8307a4134dcc1efd60d/packages/SystemUI/src/com/android/systemui/qs/external/TileServices.java#37), a cap unchanged since Android Nougat (2016), when 2-4 GB RAM was standard. It made sense back then, but modern hardware has moved on while this constant stayed behind. System tiles bypass this limit, but for third-party tiles, only 3 are permitted to bind at any given time, with any additional tiles denied entry until a slot is manually freed.
-
-When Android 13 introduced aggressive process freezing via `CachedAppOptimizer`, it turned this legacy binding cap into a modern performance bottleneck. Under these constraints, any tile beyond the allowed limit is actively frozen. Opening the QS panel triggers a bind priority recalculation, and any frozen tile you tap must go through an unfreeze-and-rebind cycle. This results in a 3-5 second delay on hardware that has more than enough RAM to keep every tile warm and responsive.
+Since Nougat (2016) Android has limited third party Quick Settings to [3 active tiles](https://android.googlesource.com/platform/frameworks/base/+/d5a204f16e7c71ffdbc6c8307a4134dcc1efd60d/packages/SystemUI/src/com/android/systemui/qs/external/TileServices.java#37). SystemUI manages tile bindings via a visibility-based priority queue, evicting services for non-visible tiles once the cap is reached. The Android 13 optimizer then freezes these evicted services which causes a ~3-5 second delay when they are eventually tapped.
 
 <details>
 <summary>Example: 10 third-party tiles installed</summary>
 
 1. You pull down the QS panel
-2. Android calculates bind priority and keeps only 3 tiles warm (e.g., Caffeine, Home Assistant, Shizuku)
-3. The other 7 (including Tasker) remain frozen
-4. You tap Tasker: Android evicts the lowest-priority bound tile, unfreezes Tasker, rebinds it, 3 to 5 second delay
+2. SystemUI binds the 3 most visible tiles using its visibility-based priority queue
+3. The remaining 7 are evicted and frozen by CachedAppOptimizer
+4. You tap an inactive tile and wait 3-5 seconds for the unfreeze-and-rebind cycle to complete
 </details>
 
 ## How it works
 
-This module uses the modern Xposed API to hook into this process and modify the logic governing third-party tile lifecycle management. It raises the binding cap, letting all your tiles stay bound. No slot competition, no lag russian roulette.
+This module uses the modern Xposed API to hook into `SystemUI` and raise the binding cap, allowing all your tiles to stay warm and responsive without the lag russian roulette.
 
 ## Requirements
 
-- LSPosed framework (API 100)
 - Android 13+ (API 33+)
+- LSPosed (API 100)
+- Scope: `com.android.systemui`
 
-## Compatibility
+Tested on Pixel and LineageOS (Android 16). OEM ROMs (Samsung, Xiaomi, etc.) untested. Root required on Android 14+ for tile scanning and SystemUI restart.
 
-Works on AOSP-based ROMs and Pixel devices. OEM-modified `SystemUI` (Samsung OneUI, Xiaomi MIUI, etc.) is untested.
+## System Overhead
 
-## Installation
+**Memory Footprint**: Each tile uses ~10-30 MB. Even with 20+ tiles active, the total RAM usage is virtually imperceptible on any 6GB+ device.
 
-1. Install [LSPosed](https://github.com/JingMatrix/LSPosed) (JingMatrix fork recommended)
-2. Download latest APK from [releases](../../releases)
-3. Install APK and enable module in LSPosed Manager
-4. Add `com.android.systemui` to module scope
-5. Reboot or restart `SystemUI` (supported via the app's built-in feature, requires root)
+**Battery & Wakeclocks**: No idle drain or unnecessary wakeups. Power consumption depends entirely on what your active tiles do.
 
-## Usage
+**Stability**: Higher binding limits increase active connections in SystemUI. Poorly coded tiles may cause issues on budget devices at extremely high limits.
 
-Once the module is enabled in LSPosed and you've rebooted (phone or `SystemUI`), simply open the app and select your preferred tile binding limit using the slider.
+If you encounter issues, please [file an issue on GitHub](https://github.com/hxreborn/qs-boundless-tiles/issues).
 
-The **recommended value** is the sweet spot. It's calculated based on your currently active tiles and the maximum theoretical tiles available from all installed apps. You can go higher or lower depending on your needs.
+## Installation & Usage
 
-## Trade-offs
-
-**Memory**: Each bound tile process uses 10-30 MB of RAM. Modern Android 13+ devices ship with 6-12 GB RAM minimum, so even with 15-20 tiles bound, the impact is negligible. The app calculates the recommended limit based on your installed tiles.
-
-**Battery**: Idle bound services use minimal power. Impact grows if tiles run listeners, timers, or foreground services.
-
-**Stability**: Raising the cap increases the number of active `ServiceConnection` and `RemoteCallbackList` entries in `SystemUI`. While modern kernels handle this easily, keeping the limit to what you actually use (via the app's recommended slider) is better than maxing it out for no reason. Setting unreasonably high limits on older/budget devices with limited RAM may surface issues with poorly coded tiles that don't handle resources properly.
+1. Install [LSPosed](https://github.com/JingMatrix/LSPosed) and download the latest APK from [releases](../../releases)
+2. Install the APK and grant root access (recommended to auto-calculate the optimal limit)
+3. Enable the module in LSPosed and set scope to System UI
+4. Open the app and adjust the slider
+5. Reboot device or restart SystemUI (available in app's 3-dot menu if root was granted) to apply changes
 
 ## Build
 
@@ -66,7 +59,13 @@ The **recommended value** is the sweet spot. It's calculated based on your curre
    sdk.dir=/path/to/android/sdk
    ```
 
-3. Release signing via `signing.properties` — optional, omit for reproducible builds
+3. Build APK
+
+   ```bash
+   ./gradlew assembleRelease
+   ```
+
+4. (Optional) Sign release builds via `signing.properties` or environment variables
 
    ```properties
    keystore.path=/path/to/your/keystore.jks
@@ -75,11 +74,7 @@ The **recommended value** is the sweet spot. It's calculated based on your curre
    key.password=<key password>
    ```
 
-4. Run build command
-
-   ```bash
-   ./gradlew assembleRelease
-   ```
+   Unsigned builds remain reproducible.
 
 ## License
 
