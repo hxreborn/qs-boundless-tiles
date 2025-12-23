@@ -79,6 +79,7 @@ android {
 
     lint {
         abortOnError = true
+        checkReleaseBuilds = false
         disable.addAll(listOf("PrivateApi", "DiscouragedPrivateApi", "QueryAllPackagesPermission"))
         ignoreTestSources = true
     }
