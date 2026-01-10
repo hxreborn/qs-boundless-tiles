@@ -19,24 +19,25 @@ class QSBoundlessTilesModule(
     }
 
     override fun onPackageLoaded(param: PackageLoadedParam) {
-        if (param.packageName != SYSTEMUI_PACKAGE || hooked) return
+        if (!param.isFirstPackage ||
+            param.packageName != BuildConfig.SYSTEMUI_PACKAGE ||
+            hooked
+        ) {
+            return
+        }
         hooked = true
-
-        log("SystemUI loaded, hooking tile services...")
 
         PrefsManager.init(this)
 
         runCatching {
             TileServicesHook.hook(param.classLoader)
-            log("TileServices hooked successfully, maxBound=${PrefsManager.getMaxBound()}")
         }.onFailure { e ->
             log("Failed to hook TileServices", e)
         }
     }
 
     companion object {
-        private const val SYSTEMUI_PACKAGE = "com.android.systemui"
-        private var hooked = false
+        @Volatile private var hooked = false
 
         fun log(
             msg: String,
