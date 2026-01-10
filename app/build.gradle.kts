@@ -4,6 +4,17 @@ plugins {
     alias(libs.plugins.ktlint)
 }
 
+val xposedScopePackage: Provider<String> =
+    providers
+        .fileContents(layout.projectDirectory.file("src/main/resources/META-INF/xposed/scope.list"))
+        .asText
+        .map { content ->
+            content
+                .lineSequence()
+                .first { it.isNotBlank() }
+                .trim()
+        }
+
 android {
     namespace = "eu.hxreborn.qsboundlesstiles"
     compileSdk = 36
@@ -14,6 +25,7 @@ android {
         targetSdk = 36
         versionCode = 151
         versionName = "1.5.1"
+        buildConfigField("String", "SYSTEMUI_PACKAGE", "\"${xposedScopePackage.get()}\"")
     }
 
     signingConfigs {
