@@ -39,15 +39,19 @@ Tested on Pixel and LineageOS (Android 16). OEM ROMs (Samsung, Xiaomi, etc.) unt
 
 **Stability**: Higher binding limits increase active connections in SystemUI. Poorly coded tiles may cause issues on budget devices at extremely high limits.
 
-If you encounter issues, please [file an issue on GitHub](https://github.com/hxreborn/qs-boundless-tiles/issues).
+If you encounter issues, please [file an issue on GitHub](https://github.com/hxreborn/qs-boundless-tiles/issues/new/choose).
 
 ## Installation & Usage
 
-1. Install [LSPosed](https://github.com/JingMatrix/LSPosed) and download the latest APK from [releases](../../releases)
-2. Install the APK and grant root access (recommended to auto-calculate the optimal limit)
-3. Enable the module in LSPosed and set scope to System UI
-4. Open the app and adjust the slider
-5. Reboot device or restart SystemUI (available in app's 3-dot menu if root was granted) to apply changes
+1. Download the APK:
+
+   <a href="../../releases"><img src=".github/assets/badge_github.png" height="60" alt="Get it on GitHub" /></a>
+   <a href="http://apps.obtainium.imranr.dev/redirect.html?r=obtainium://app/%7B%22id%22%3A%22eu.hxreborn.qsboundlesstiles%22%2C%22url%22%3A%22https%3A%2F%2Fgithub.com%2Fhxreborn%2Fqs-boundless-tiles%22%2C%22author%22%3A%22rafareborn%22%2C%22name%22%3A%22QS%20Boundless%20Tiles%22%2C%22additionalSettings%22%3A%22%7B%5C%22includePrereleases%5C%22%3Afalse%7D%22%7D"><img src=".github/assets/badge_obtainium.png" height="60" alt="Get it on Obtainium" /></a>
+
+2. Install and enable the module in [LSPosed](https://github.com/JingMatrix/LSPosed)
+3. Scope to `com.android.systemui`
+4. Restart SystemUI or reboot the device
+5. Open the app and adjust the slider (grant root for auto-calculated optimal limit)
 
 ## Build
 
