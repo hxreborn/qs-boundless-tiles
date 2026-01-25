@@ -46,7 +46,6 @@ class MainActivity :
     private var xposedService: XposedService? = null
     private var optionsMenu: Menu? = null
 
-    // Local prefs for UI source of truth
     private val localPrefs by lazy {
         getSharedPreferences(PrefsManager.PREFS_GROUP, MODE_PRIVATE)
     }
@@ -108,7 +107,7 @@ class MainActivity :
     override fun onServiceBind(service: XposedService) {
         xposedService = service
         remotePrefs = service.getRemotePreferences(PrefsManager.PREFS_GROUP)
-        syncRemoteFromLocal()
+        syncPrefs()
         runOnUiThread { updateStatusCard(); loadPrefs() }
     }
 
@@ -119,7 +118,7 @@ class MainActivity :
 
     override fun onResume() {
         super.onResume()
-        syncRemoteFromLocal()
+        syncPrefs()
         updateStatusCard()
         loadPrefs()
         refreshActiveQsCount()
@@ -128,7 +127,7 @@ class MainActivity :
     private fun getMaxBound(): Int =
         localPrefs.getInt(PrefsManager.KEY_MAX_BOUND, PrefsManager.DEFAULT_MAX_BOUND)
 
-    private fun syncRemoteFromLocal() {
+    private fun syncPrefs() {
         remotePrefs?.edit(commit = true) {
             putInt(PrefsManager.KEY_MAX_BOUND, getMaxBound())
         }
@@ -144,9 +143,7 @@ class MainActivity :
 
     private fun setMaxBound(value: Int) {
         val clamped = value.coerceIn(PrefsManager.DEFAULT_MAX_BOUND, PrefsManager.MAX_BOUND)
-        // Write to local (UI truth)
         localPrefs.edit { putInt(PrefsManager.KEY_MAX_BOUND, clamped) }
-        // Write to remote (hook sync)
         remotePrefs?.edit(commit = true) { putInt(PrefsManager.KEY_MAX_BOUND, clamped) }
     }
 
