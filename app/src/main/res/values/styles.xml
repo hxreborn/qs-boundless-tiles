@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Toolbar.TitleText" parent="TextAppearance.Material3.TitleLarge" />
+
+    <style name="Toolbar.TitleText.Collapsed" parent="TextAppearance.Material3.TitleLarge">
+        <item name="android:textSize">22sp</item>
+    </style>
+
+    <style name="Toolbar.TitleText.Expanded" parent="TextAppearance.Material3.TitleLarge">
+        <item name="android:textSize">40sp</item>
+    </style>
+</resources>
