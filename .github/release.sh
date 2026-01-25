@@ -1,10 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VERSION_INPUT=${1:-}
+ALLOW_DIRTY=false
+VERSION_INPUT=""
+
+for arg in "$@"; do
+	case "$arg" in
+		--allow-dirty) ALLOW_DIRTY=true ;;
+		*) VERSION_INPUT="$arg" ;;
+	esac
+done
 
 if [[ -z "$VERSION_INPUT" ]]; then
-	echo "Usage: ./.github/release.sh <version>"
+	echo "Usage: ./.github/release.sh <version> [--allow-dirty]"
 	echo "Example: ./.github/release.sh 1.6.0"
 	echo "Example: ./.github/release.sh v1.6.0"
 	exit 1
@@ -27,8 +35,8 @@ fi
 
 TAG="v$VERSION"
 
-if [[ -n "$(git status --porcelain)" ]]; then
-	echo "Error: working tree not clean"
+if [[ "$ALLOW_DIRTY" == false && -n "$(git status --porcelain)" ]]; then
+	echo "Error: working tree not clean (use --allow-dirty to override)"
 	exit 1
 fi
 
