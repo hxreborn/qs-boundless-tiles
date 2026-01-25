@@ -39,7 +39,12 @@ class MainActivity :
     private lateinit var binding: ActivityMainBinding
     private var xposedService: XposedService? = null
 
-    // Syncs with hooked SystemUI via libxposed RemotePreferences
+    // Local prefs for UI source of truth
+    private val localPrefs by lazy {
+        getSharedPreferences(PrefsManager.PREFS_GROUP, MODE_PRIVATE)
+    }
+
+    // Remote prefs for hook sync via libxposed
     private var remotePrefs: SharedPreferences? = null
 
     // Requires root to read sysui_qs_tiles, 0 if unavailable
@@ -63,10 +68,8 @@ class MainActivity :
     override fun onServiceBind(service: XposedService) {
         xposedService = service
         remotePrefs = service.getRemotePreferences(PrefsManager.PREFS_GROUP)
-        runOnUiThread {
-            updateStatusCard()
-            loadPrefs()
-        }
+        syncRemoteFromLocal()
+        runOnUiThread { updateStatusCard(); loadPrefs() }
     }
 
     override fun onServiceDied(service: XposedService) {
@@ -76,14 +79,20 @@ class MainActivity :
 
     override fun onResume() {
         super.onResume()
+        syncRemoteFromLocal()
         updateStatusCard()
         loadPrefs()
         refreshActiveQsCount()
     }
 
     private fun getMaxBound(): Int =
-        remotePrefs?.getInt(PrefsManager.KEY_MAX_BOUND, PrefsManager.DEFAULT_MAX_BOUND)
-            ?: PrefsManager.DEFAULT_MAX_BOUND
+        localPrefs.getInt(PrefsManager.KEY_MAX_BOUND, PrefsManager.DEFAULT_MAX_BOUND)
+
+    private fun syncRemoteFromLocal() {
+        remotePrefs?.edit(commit = true) {
+            putInt(PrefsManager.KEY_MAX_BOUND, getMaxBound())
+        }
+    }
 
     private fun refreshActiveQsCount() {
         lifecycleScope.launch {
@@ -94,7 +103,10 @@ class MainActivity :
 
     private fun setMaxBound(value: Int) {
         val clamped = value.coerceIn(PrefsManager.DEFAULT_MAX_BOUND, PrefsManager.MAX_BOUND)
-        remotePrefs?.edit { putInt(PrefsManager.KEY_MAX_BOUND, clamped) }
+        // Write to local (UI truth)
+        localPrefs.edit { putInt(PrefsManager.KEY_MAX_BOUND, clamped) }
+        // Write to remote (hook sync)
+        remotePrefs?.edit(commit = true) { putInt(PrefsManager.KEY_MAX_BOUND, clamped) }
     }
 
     // Updates UI after maxBound change; skipSlider=true when called from slider listener
@@ -105,6 +117,7 @@ class MainActivity :
         setMaxBound(value)
         if (!skipSlider) binding.maxBoundSlider.value = value.toFloat()
         binding.targetLimit.text = value.toString()
+        if (xposedService != null) binding.systemuiStatus.text = value.toString()
         updateStatusLine(value, activeQsCount)
         updateStatusCard()
     }
@@ -157,7 +170,7 @@ class MainActivity :
         val maxBound = getMaxBound()
 
         binding.targetLimit.text = maxBound.toString()
-        binding.systemuiStatus.text = maxBound.toString()
+        binding.systemuiStatus.text = if (xposedService != null) maxBound.toString() else "—"
 
         val sliderMax = availableApps.coerceAtLeast(10)
         binding.maxBoundSlider.valueTo = sliderMax.toFloat()

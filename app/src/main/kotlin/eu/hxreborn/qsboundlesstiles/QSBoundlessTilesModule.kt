@@ -19,13 +19,7 @@ class QSBoundlessTilesModule(
     }
 
     override fun onPackageLoaded(param: PackageLoadedParam) {
-        if (!param.isFirstPackage ||
-            param.packageName != BuildConfig.SYSTEMUI_PACKAGE ||
-            hooked
-        ) {
-            return
-        }
-        hooked = true
+        if (param.packageName != BuildConfig.SYSTEMUI_PACKAGE || !param.isFirstPackage) return
 
         PrefsManager.init(this)
 
@@ -37,8 +31,6 @@ class QSBoundlessTilesModule(
     }
 
     companion object {
-        @Volatile private var hooked = false
-
         fun log(
             msg: String,
             t: Throwable? = null,

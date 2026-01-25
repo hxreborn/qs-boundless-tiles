@@ -13,6 +13,7 @@ private const val TILE_SERVICES_CLASS = "com.android.systemui.qs.external.TileSe
 
 object TileServicesHook {
     private var maxBoundField: Field? = null
+    @Volatile private var tileServicesInstance: Any? = null
 
     fun hook(classLoader: ClassLoader) {
         val tileServicesClass = classLoader.loadClass(TILE_SERVICES_CLASS)
@@ -33,6 +34,19 @@ object TileServicesHook {
         tileServicesClass.declaredMethods
             .find { it.name == "setMemoryPressure" && it.parameterCount == 1 }
             ?.let { module.hook(it, SetMemoryPressureHooker::class.java) }
+
+        PrefsManager.onMaxBoundChanged = { newValue ->
+            tileServicesInstance?.let { instance ->
+                setMaxBound(instance, newValue)
+                log("Live updated mMaxBound=$newValue")
+            }
+        }
+
+        log("Hooked TileServices")
+    }
+
+    fun storeInstance(tileServices: Any) {
+        tileServicesInstance = tileServices
     }
 
     fun setMaxBound(
@@ -54,8 +68,10 @@ class TileServicesConstructorHooker : XposedInterface.Hooker {
         @AfterInvocation
         fun after(callback: AfterHookCallback) {
             val tileServices = callback.thisObject ?: return
+            TileServicesHook.storeInstance(tileServices)
             val newMax = maxOf(PrefsManager.DEFAULT_MAX_BOUND, PrefsManager.getMaxBound())
             TileServicesHook.setMaxBound(tileServices, newMax)
+            log("TileServices constructed, mMaxBound=$newMax")
         }
     }
 }
