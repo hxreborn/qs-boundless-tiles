@@ -3,6 +3,7 @@ package eu.hxreborn.qsboundlesstiles.ui
 import android.content.Intent
 import android.content.SharedPreferences
 import android.content.res.ColorStateList
+import android.content.res.Configuration
 import android.net.Uri
 import android.os.Bundle
 import android.view.Menu
@@ -11,10 +12,15 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.edit
 import androidx.core.content.res.use
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isGone
 import androidx.core.view.isInvisible
+import androidx.core.view.updatePadding
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.shape.MaterialShapeDrawable
 import com.google.android.material.snackbar.Snackbar
 import eu.hxreborn.qsboundlesstiles.BuildConfig
 import eu.hxreborn.qsboundlesstiles.QSBoundlessTilesApp
@@ -38,6 +44,7 @@ class MainActivity :
     XposedServiceHelper.OnServiceListener {
     private lateinit var binding: ActivityMainBinding
     private var xposedService: XposedService? = null
+    private var optionsMenu: Menu? = null
 
     // Local prefs for UI source of truth
     private val localPrefs by lazy {
@@ -52,12 +59,45 @@ class MainActivity :
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
         setSupportActionBar(binding.toolbar)
+        setupEdgeToEdge()
+        setupAppBarMenuVisibility()
         setupSlider()
+        setupResetButton()
         setupFeedback()
         QSBoundlessTilesApp.addServiceListener(this)
+    }
+
+    private fun setupAppBarMenuVisibility() {
+        binding.appBarLayout.addOnOffsetChangedListener { appBarLayout, verticalOffset ->
+            val scrollRange = appBarLayout.totalScrollRange
+            val alpha = -verticalOffset.toFloat() / scrollRange
+            optionsMenu?.let { menu ->
+                for (i in 0 until menu.size()) {
+                    menu.getItem(i).isVisible = alpha > 0.5f
+                }
+            }
+        }
+    }
+
+    private fun setupEdgeToEdge() {
+        val windowInsetsController = WindowCompat.getInsetsController(window, binding.root)
+        val isLightTheme = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) !=
+            Configuration.UI_MODE_NIGHT_YES
+        windowInsetsController.isAppearanceLightStatusBars = isLightTheme
+        windowInsetsController.isAppearanceLightNavigationBars = isLightTheme
+
+        binding.appBarLayout.statusBarForeground =
+            MaterialShapeDrawable.createWithElevationOverlay(this)
+
+        ViewCompat.setOnApplyWindowInsetsListener(binding.nestedScrollView) { view, windowInsets ->
+            val systemBars = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
+            view.updatePadding(bottom = systemBars.bottom)
+            windowInsets
+        }
     }
 
     override fun onDestroy() {
@@ -98,6 +138,7 @@ class MainActivity :
         lifecycleScope.launch {
             activeQsCount = RootUtils.getActiveQsTileCount()
             loadPrefs()
+            updateResetButtonState()
         }
     }
 
@@ -120,6 +161,7 @@ class MainActivity :
         if (xposedService != null) binding.systemuiStatus.text = value.toString()
         updateStatusLine(value, activeQsCount)
         updateStatusCard()
+        updateResetButtonState()
     }
 
     private fun updateStatusCard() {
@@ -189,6 +231,7 @@ class MainActivity :
         binding.statActiveValue.text = if (activeInQs == 0) "—" else activeInQs.toString()
         binding.statProvidersValue.text = availableApps.toString()
         updateRootStatus()
+        updateResetButtonState()
     }
 
     // Aligns tick indicator with slider track position for recommended value
@@ -286,6 +329,37 @@ class MainActivity :
         )
     }
 
+    private fun setupResetButton() {
+        updateResetButtonState()
+        binding.resetButton.setOnClickListener {
+            if (activeQsCount > 0) {
+                val recommended = (activeQsCount + DEFAULT_AUTO_BUFFER).coerceIn(
+                    PrefsManager.DEFAULT_MAX_BOUND,
+                    PrefsManager.MAX_BOUND,
+                )
+                applyMaxBound(recommended)
+                showSnackbar(getString(R.string.apply_recommended_done))
+            } else {
+                showSnackbar(getString(R.string.apply_recommended_no_root))
+            }
+        }
+    }
+
+    private fun updateResetButtonState() {
+        val recommended = (activeQsCount + DEFAULT_AUTO_BUFFER).coerceIn(
+            PrefsManager.DEFAULT_MAX_BOUND,
+            PrefsManager.MAX_BOUND,
+        )
+        binding.resetButton.isEnabled = activeQsCount > 0 &&
+            binding.maxBoundSlider.value.toInt() != recommended
+    }
+
+    private fun showSnackbar(message: String) {
+        currentSnackbar?.dismiss()
+        currentSnackbar = Snackbar.make(binding.root, message, Snackbar.LENGTH_SHORT)
+        currentSnackbar?.show()
+    }
+
     private fun showUndoSnackbar(
         oldValue: Int,
         newValue: Int,
@@ -311,16 +385,13 @@ class MainActivity :
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.menu_main, menu)
+        optionsMenu = menu
+        menu.setGroupVisible(0, false)
         return true
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean =
         when (item.itemId) {
-            R.id.action_apply_recommended -> {
-                showApplyRecommendedDialog()
-                true
-            }
-
             R.id.action_reset_stock -> {
                 showResetStockDialog()
                 true
@@ -335,28 +406,6 @@ class MainActivity :
                 super.onOptionsItemSelected(item)
             }
         }
-
-    private fun showApplyRecommendedDialog() {
-        if (activeQsCount <= 0) {
-            Toast.makeText(this, R.string.apply_recommended_no_root, Toast.LENGTH_LONG).show()
-            return
-        }
-
-        val recommended =
-            (activeQsCount + DEFAULT_AUTO_BUFFER).coerceIn(
-                PrefsManager.DEFAULT_MAX_BOUND,
-                PrefsManager.MAX_BOUND,
-            )
-
-        MaterialAlertDialogBuilder(this)
-            .setTitle(R.string.apply_recommended)
-            .setMessage(getString(R.string.apply_recommended_confirm, recommended))
-            .setPositiveButton(android.R.string.ok) { _, _ ->
-                applyMaxBound(recommended)
-                Toast.makeText(this, R.string.apply_recommended_done, Toast.LENGTH_SHORT).show()
-            }.setNegativeButton(android.R.string.cancel, null)
-            .show()
-    }
 
     private fun showResetStockDialog() {
         MaterialAlertDialogBuilder(this)
@@ -444,6 +493,6 @@ class MainActivity :
         // Headroom added to active tile count for recommended limit
         private const val DEFAULT_AUTO_BUFFER = 2
         private const val GITHUB_ISSUES_URL =
-            "https://github.com/hxreborn/qs-boundless-tiles/issues"
+            "https://github.com/hxreborn/qs-boundless-tiles/issues/new/choose"
     }
 }
