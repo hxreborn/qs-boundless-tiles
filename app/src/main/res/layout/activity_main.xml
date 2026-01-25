@@ -2,25 +2,58 @@
 <androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:fitsSystemWindows="true">
+    android:layout_height="match_parent">
 
     <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/appBarLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:fitsSystemWindows="true">
+        android:background="@color/transparent"
+        android:fitsSystemWindows="true"
+        app:liftOnScroll="true">
 
-        <com.google.android.material.appbar.MaterialToolbar
-            android:id="@+id/toolbar"
+        <com.google.android.material.appbar.CollapsingToolbarLayout
+            android:id="@+id/collapsingToolbar"
             android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
-            app:title="@string/app_name" />
+            android:layout_height="152dp"
+            app:collapsedTitleTextAppearance="@style/Toolbar.TitleText.Collapsed"
+            app:contentScrim="?attr/colorSurfaceContainer"
+            app:expandedTitleMarginBottom="40dp"
+            app:expandedTitleMarginEnd="24dp"
+            app:expandedTitleMarginStart="24dp"
+            app:expandedTitleTextAppearance="@style/Toolbar.TitleText.Expanded"
+            app:forceApplySystemWindowInsetTop="true"
+            app:layout_scrollFlags="scroll|snap|exitUntilCollapsed"
+            app:maxLines="2"
+            app:scrimAnimationDuration="@android:integer/config_mediumAnimTime"
+            app:statusBarScrim="@null"
+            app:title="@string/app_name"
+            app:titleCollapseMode="scale">
+
+            <com.google.android.material.appbar.MaterialToolbar
+                android:id="@+id/toolbar"
+                android:layout_width="match_parent"
+                android:layout_height="?attr/actionBarSize"
+                android:paddingEnd="24dp"
+                app:contentInsetStartWithNavigation="0dp"
+                app:layout_collapseMode="pin"
+                app:maxLines="2"
+                app:navigationIconTint="?attr/colorOnSurface"
+                app:popupTheme="@style/Theme.QSBoundlessTiles"
+                app:title="@string/app_name"
+                app:titleTextAppearance="@style/Toolbar.TitleText"
+                app:titleTextEllipsize="end" />
+
+        </com.google.android.material.appbar.CollapsingToolbarLayout>
 
     </com.google.android.material.appbar.AppBarLayout>
 
     <androidx.core.widget.NestedScrollView
+        android:id="@+id/nestedScrollView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:clipToPadding="false"
+        android:overScrollMode="always"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
         <LinearLayout
@@ -114,6 +147,15 @@
                             android:layout_height="wrap_content"
                             android:textAppearance="?attr/textAppearanceLabelSmall"
                             android:textColor="?attr/colorOnSurfaceVariant" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/resetButton"
+                            style="?attr/materialIconButtonFilledTonalStyle"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:contentDescription="@string/apply_recommended"
+                            app:icon="@drawable/ic_reset_24" />
 
                     </LinearLayout>
 
