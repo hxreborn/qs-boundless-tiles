@@ -5,7 +5,6 @@
 .github/assets/** linguist-vendored
 .github/assets/** linguist-detectable=false
 
-*.xml linguist-detectable=true
 *.sh linguist-detectable=true
 *.yml linguist-detectable=true
 *.toml linguist-detectable=true
