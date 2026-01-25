@@ -1,0 +1,48 @@
+name: Bug Report
+description: Something isn't working
+labels: ["bug"]
+body:
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category
+      options:
+        - Tiles not binding immediately
+        - Settings not applying after SystemUI restart
+        - App crash
+        - Module not loading
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What happened?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open app
+        2. Set limit to X
+        3. ...
+  - type: textarea
+    id: device
+    attributes:
+      label: Device info
+      placeholder: |
+        Device: Pixel 8
+        Android: 15
+        ROM: Stock
+        LSPosed: 1.9.2
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: LSPosed logs if available
+      render: shell
