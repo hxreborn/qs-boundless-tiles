@@ -8,17 +8,13 @@ import android.service.quicksettings.TileService
 object TileScanner {
     private val SYSTEM_PREFIXES = listOf("com.android.", "com.google.", "android.")
 
-    fun getThirdPartyTileCount(context: Context): Int = getThirdPartyTilePackages(context).size
-
-    fun getThirdPartyTilePackages(context: Context): Set<String> =
+    fun getThirdPartyTileCount(context: Context): Int =
         runCatching {
             val intent = Intent(TileService.ACTION_QS_TILE)
             context.packageManager
                 .queryIntentServices(intent, PackageManager.MATCH_ALL)
-                .mapNotNull { it.serviceInfo?.packageName }
-                .filterNot(::isSystemPackage)
-                .toSet()
-        }.getOrDefault(emptySet())
+                .count { it.serviceInfo?.packageName?.let { pkg -> !isSystemPackage(pkg) } == true }
+        }.getOrDefault(0)
 
     private fun isSystemPackage(packageName: String): Boolean =
         SYSTEM_PREFIXES.any { packageName.startsWith(it) }
