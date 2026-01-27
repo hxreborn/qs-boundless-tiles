@@ -153,7 +153,11 @@ class MainActivity :
         skipSlider: Boolean = false,
     ) {
         setMaxBound(value)
-        if (!skipSlider) binding.maxBoundSlider.value = value.toFloat()
+        if (!skipSlider) {
+            val sliderMax = binding.maxBoundSlider.valueTo.toInt()
+            val clampedForSlider = value.coerceIn(PrefsManager.DEFAULT_MAX_BOUND, sliderMax)
+            binding.maxBoundSlider.value = clampedForSlider.toFloat()
+        }
         binding.targetLimit.text = value.toString()
         if (xposedService != null) binding.systemuiStatus.text = value.toString()
         updateStatusLine(value, activeQsCount)
