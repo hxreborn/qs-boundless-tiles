@@ -1,5 +1,6 @@
 package eu.hxreborn.qsboundlesstiles
 
+import android.util.Log
 import eu.hxreborn.qsboundlesstiles.hook.TileServicesHook
 import eu.hxreborn.qsboundlesstiles.prefs.PrefsManager
 import io.github.libxposed.api.XposedInterface
@@ -31,11 +32,16 @@ class QSBoundlessTilesModule(
     }
 
     companion object {
-        fun log(
-            msg: String,
-            t: Throwable? = null,
-        ) {
-            if (t != null) module.log(msg, t) else module.log(msg)
+        private const val TAG = "QSBoundlessTiles"
+
+        fun log(msg: String, t: Throwable? = null) {
+            t?.let {
+                module.log(msg, it)
+                Log.e(TAG, msg, it)
+            } ?: run {
+                module.log(msg)
+                Log.d(TAG, msg)
+            }
         }
     }
 }
