@@ -1,21 +1,20 @@
 package eu.hxreborn.qsboundlesstiles
 
-import android.util.Log
 import eu.hxreborn.qsboundlesstiles.hook.TileServicesHook
 import eu.hxreborn.qsboundlesstiles.prefs.PrefsManager
+import eu.hxreborn.qsboundlesstiles.util.Logger
+import eu.hxreborn.qsboundlesstiles.util.log
 import io.github.libxposed.api.XposedInterface
 import io.github.libxposed.api.XposedModule
 import io.github.libxposed.api.XposedModuleInterface.ModuleLoadedParam
 import io.github.libxposed.api.XposedModuleInterface.PackageLoadedParam
-
-internal lateinit var module: QSBoundlessTilesModule
 
 class QSBoundlessTilesModule(
     base: XposedInterface,
     param: ModuleLoadedParam,
 ) : XposedModule(base, param) {
     init {
-        module = this
+        Logger.init(this)
         log("v${BuildConfig.VERSION_NAME} loaded")
     }
 
@@ -25,23 +24,9 @@ class QSBoundlessTilesModule(
         PrefsManager.init(this)
 
         runCatching {
-            TileServicesHook.hook(param.classLoader)
+            TileServicesHook.hook(this, param.classLoader)
         }.onFailure { e ->
             log("Failed to hook TileServices", e)
-        }
-    }
-
-    companion object {
-        private const val TAG = "QSBoundlessTiles"
-
-        fun log(msg: String, t: Throwable? = null) {
-            t?.let {
-                module.log(msg, it)
-                Log.e(TAG, msg, it)
-            } ?: run {
-                module.log(msg)
-                Log.d(TAG, msg)
-            }
         }
     }
 }

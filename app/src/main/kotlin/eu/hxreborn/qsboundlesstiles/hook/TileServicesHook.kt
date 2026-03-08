@@ -1,11 +1,15 @@
 package eu.hxreborn.qsboundlesstiles.hook
 
-import eu.hxreborn.qsboundlesstiles.QSBoundlessTilesModule.Companion.log
-import eu.hxreborn.qsboundlesstiles.module
+import android.os.Build
+import eu.hxreborn.qsboundlesstiles.prefs.Prefs
 import eu.hxreborn.qsboundlesstiles.prefs.PrefsManager
+import eu.hxreborn.qsboundlesstiles.ui.EventType
+import eu.hxreborn.qsboundlesstiles.util.log
+import eu.hxreborn.qsboundlesstiles.util.logDebug
 import io.github.libxposed.api.XposedInterface
 import io.github.libxposed.api.XposedInterface.AfterHookCallback
 import io.github.libxposed.api.XposedInterface.BeforeHookCallback
+import io.github.libxposed.api.XposedModule
 import io.github.libxposed.api.annotations.AfterInvocation
 import io.github.libxposed.api.annotations.BeforeInvocation
 import io.github.libxposed.api.annotations.XposedHooker
@@ -15,58 +19,115 @@ import java.lang.reflect.Method
 private const val TILE_SERVICES_CLASS = "com.android.systemui.qs.external.TileServices"
 
 object TileServicesHook {
+    const val HOOK_CONSTRUCTOR = 1
+    const val HOOK_SET_MEMORY_PRESSURE = 2
+    const val HOOK_RECALCULATE_BIND_ALLOWANCE = 4
+    const val HOOK_HANDLE_CLICK = 8
+    const val HOOK_ON_SERVICE_CONNECTED = 16
+    const val HOOK_SERVICE_DIED = 32
+    const val HOOK_ALL =
+        HOOK_CONSTRUCTOR or HOOK_SET_MEMORY_PRESSURE or HOOK_RECALCULATE_BIND_ALLOWANCE or
+            HOOK_HANDLE_CLICK or
+            HOOK_ON_SERVICE_CONNECTED or
+            HOOK_SERVICE_DIED
+
+    @Volatile
     private var maxBoundField: Field? = null
+
+    @Volatile
     private var recalculateMethod: Method? = null
 
     @Volatile
-    private var tileServicesInstance: Any? = null
+    var tileServicesInstance: Any? = null
+        internal set
 
-    fun hook(classLoader: ClassLoader) {
-        val tileServicesClass = classLoader.loadClass(TILE_SERVICES_CLASS)
+    fun hook(
+        module: XposedModule,
+        classLoader: ClassLoader,
+    ) {
+        log("Hooking TileServices on API ${Build.VERSION.SDK_INT}")
 
-        maxBoundField =
-            runCatching {
-                tileServicesClass.getDeclaredField("mMaxBound").apply { isAccessible = true }
-            }.onFailure {
-                log("mMaxBound field not found, aborting", it)
-            }.getOrNull()
+        val tileServicesClass =
+            classLoader.loadOrNull(TILE_SERVICES_CLASS) ?: run {
+                log("TileServices class not found, aborting")
+                PrefsManager.setHookStatus(0)
+                return
+            }
 
-        if (maxBoundField == null) return
+        maxBoundField = tileServicesClass.accessibleFieldOrNull("mMaxBound")
+
+        if (maxBoundField == null) {
+            log("mMaxBound field not found, aborting")
+            PrefsManager.setHookStatus(0)
+            return
+        }
+
+        var hookStatus = 0
 
         tileServicesClass.declaredConstructors.forEach { constructor ->
             module.hook(constructor, TileServicesConstructorHooker::class.java)
         }
+        hookStatus = hookStatus or HOOK_CONSTRUCTOR
 
-        // Fallback for OEM builds where recalculateBindAllowance may be renamed/inlined
         tileServicesClass.declaredMethods
             .find {
-                it.name == "setMemoryPressure" &&
-                    it.parameterCount == 1
-            }?.let { module.hook(it, SetMemoryPressureHooker::class.java) }
+                it.name == "setMemoryPressure" && it.parameterCount == 1
+            }?.let {
+                module.hook(it, SetMemoryPressureHooker::class.java)
+                hookStatus = hookStatus or HOOK_SET_MEMORY_PRESSURE
+            } ?: log("setMemoryPressure not found (removed in Android 15+, not needed)")
 
-        // setMemoryPressure sets mMaxBound=1 then calls recalculateBindAllowance synchronously
-        // Before-hook here restores mMaxBound before binding evaluation on each tile
         tileServicesClass.declaredMethods
             .find {
-                it.name == "recalculateBindAllowance" &&
-                    it.parameterCount == 0
+                it.name == "recalculateBindAllowance" && it.parameterCount == 0
             }?.also { recalculateMethod = it.apply { isAccessible = true } }
-            ?.let { module.hook(it, RecalculateBindAllowanceHooker::class.java) }
+            ?.let {
+                module.hook(it, RecalculateBindAllowanceHooker::class.java)
+                hookStatus = hookStatus or HOOK_RECALCULATE_BIND_ALLOWANCE
+            } ?: log("recalculateBindAllowance not found -- live binding updates unavailable")
 
-        // Trigger recalculateBindAllowance on pref change so new mMaxBound applies immediately
+        hookStatus = hookStatus or TileActivityHook.hook(module, classLoader)
+
+        PrefsManager.setHookStatus(hookStatus)
+
         PrefsManager.onMaxBoundChanged = { newValue ->
             tileServicesInstance?.let { instance ->
                 setMaxBound(instance, newValue)
                 runCatching { recalculateMethod?.invoke(instance) }
                 log("Live updated mMaxBound=$newValue")
+                PrefsManager.recordTileEvent(EventType.LIMIT_SET, null, null, "mMaxBound=$newValue")
             }
         }
 
-        log("Hooked TileServices")
+        log("Hooked TileServices (status=0b${hookStatus.toString(2).padStart(6, '0')})")
     }
 
-    fun storeInstance(tileServices: Any) {
-        tileServicesInstance = tileServices
+    fun extractContext(tileServices: Any) {
+        val context =
+            generateSequence<Class<*>>(tileServices.javaClass) { it.superclass }
+                .take(20)
+                .firstNotNullOfOrNull { cls ->
+                    cls
+                        .accessibleFieldOrNull(
+                            "mContext",
+                        )?.get(tileServices) as? android.content.Context
+                }
+
+        context?.let {
+            TileActivityHook.setContext(it)
+            return
+        }
+
+        runCatching {
+            val activityThread = Class.forName("android.app.ActivityThread")
+            val app =
+                activityThread
+                    .getMethod("currentApplication")
+                    .invoke(null) as? android.content.Context
+            app?.let { TileActivityHook.setContext(it) }
+        }.onFailure {
+            log("Failed to extract SystemUI context", it)
+        }
     }
 
     fun setMaxBound(
@@ -81,7 +142,7 @@ object TileServicesHook {
     }
 
     fun applyUserMaxBound(tileServices: Any) {
-        val newMax = maxOf(PrefsManager.DEFAULT_MAX_BOUND, PrefsManager.getMaxBound())
+        val newMax = PrefsManager.maxBound.coerceAtLeast(Prefs.maxBound.default)
         setMaxBound(tileServices, newMax)
     }
 }
@@ -93,9 +154,17 @@ class TileServicesConstructorHooker : XposedInterface.Hooker {
         @AfterInvocation
         fun after(callback: AfterHookCallback) {
             val tileServices = callback.thisObject ?: return
-            TileServicesHook.storeInstance(tileServices)
+            TileServicesHook.tileServicesInstance = tileServices
+            TileServicesHook.extractContext(tileServices)
             TileServicesHook.applyUserMaxBound(tileServices)
-            log("TileServices constructed, mMaxBound=${PrefsManager.getMaxBound()}")
+            log("TileServices constructed, mMaxBound=${PrefsManager.maxBound}")
+            PrefsManager.flushHookStatus()
+            PrefsManager.recordTileEvent(
+                EventType.LIMIT_SET,
+                null,
+                null,
+                "mMaxBound=${PrefsManager.maxBound}",
+            )
         }
     }
 }
@@ -108,7 +177,18 @@ class SetMemoryPressureHooker : XposedInterface.Hooker {
         fun after(callback: AfterHookCallback) {
             callback.thisObject?.let {
                 TileServicesHook.applyUserMaxBound(it)
-                log("setMemoryPressure: restored mMaxBound=${PrefsManager.getMaxBound()}")
+                val memoryPressure = callback.args?.getOrNull(0) as? Boolean ?: return
+                logDebug {
+                    "setMemoryPressure($memoryPressure): restored mMaxBound=${PrefsManager.maxBound}"
+                }
+                if (memoryPressure) {
+                    PrefsManager.recordTileEvent(
+                        EventType.MEM_PRESSURE,
+                        null,
+                        null,
+                        "Memory pressure intercepted, limit preserved at ${PrefsManager.maxBound}",
+                    )
+                }
             }
         }
     }
@@ -122,8 +202,14 @@ class RecalculateBindAllowanceHooker : XposedInterface.Hooker {
         fun before(callback: BeforeHookCallback) {
             callback.thisObject?.let {
                 TileServicesHook.applyUserMaxBound(it)
-                log("recalculateBindAllowance: set mMaxBound=${PrefsManager.getMaxBound()}")
+                logDebug { "recalculateBindAllowance: set mMaxBound=${PrefsManager.maxBound}" }
             }
         }
+
+        @JvmStatic
+        @AfterInvocation
+        fun after(
+            @Suppress("UNUSED_PARAMETER") callback: AfterHookCallback,
+        ) = Unit
     }
 }

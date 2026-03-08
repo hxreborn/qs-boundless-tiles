@@ -27,6 +27,12 @@
             android:exported="true"
             tools:ignore="ExportedContentProvider" />
 
+        <provider
+            android:name=".provider.HookDataProvider"
+            android:authorities="eu.hxreborn.qsboundlesstiles.hookdata"
+            android:exported="true"
+            tools:ignore="ExportedContentProvider" />
+
     </application>
 
 </manifest>

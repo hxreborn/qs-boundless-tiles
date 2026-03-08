@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.agp.app)
     alias(libs.plugins.kotlin)
+    alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ktlint)
 }
 
@@ -23,8 +24,8 @@ android {
         applicationId = "eu.hxreborn.qsboundlesstiles"
         minSdk = 33
         targetSdk = 36
-        versionCode = 161
-        versionName = "1.6.1-rc1"
+        versionCode = 200
+        versionName = "2.0.0"
         buildConfigField("String", "SYSTEMUI_PACKAGE", "\"${xposedScopePackage.get()}\"")
     }
 
@@ -75,7 +76,7 @@ android {
 
     buildFeatures {
         buildConfig = true
-        viewBinding = true
+        compose = true
     }
 
     compileOptions {
@@ -111,7 +112,14 @@ dependencies {
     compileOnly(libs.libxposed.api)
     implementation(libs.libxposed.service)
     implementation(libs.material)
-    implementation(libs.appcompat)
     implementation(libs.lifecycle.runtime)
+    implementation(libs.lifecycle.viewmodel)
+    implementation(libs.lifecycle.runtime.compose)
     implementation(libs.core.ktx)
+    implementation(libs.libsu.core)
+    implementation(platform(libs.compose.bom))
+    implementation(libs.compose.material3)
+    implementation(libs.compose.ui.tooling.preview)
+    implementation(libs.activity.compose)
+    debugImplementation(libs.compose.ui.tooling)
 }

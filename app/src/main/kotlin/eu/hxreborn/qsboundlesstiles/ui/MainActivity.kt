@@ -1,33 +1,23 @@
 package eu.hxreborn.qsboundlesstiles.ui
 
-import android.content.Intent
 import android.content.SharedPreferences
-import android.content.res.ColorStateList
-import android.content.res.Configuration
-import android.net.Uri
 import android.os.Bundle
-import android.view.Menu
-import android.view.MenuItem
 import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.getValue
 import androidx.core.content.edit
-import androidx.core.content.res.use
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.isGone
-import androidx.core.view.isInvisible
-import androidx.core.view.updatePadding
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import com.google.android.material.shape.MaterialShapeDrawable
-import com.google.android.material.snackbar.Snackbar
-import eu.hxreborn.qsboundlesstiles.BuildConfig
 import eu.hxreborn.qsboundlesstiles.QSBoundlessTilesApp
 import eu.hxreborn.qsboundlesstiles.R
-import eu.hxreborn.qsboundlesstiles.databinding.ActivityMainBinding
-import eu.hxreborn.qsboundlesstiles.prefs.PrefsManager
-import eu.hxreborn.qsboundlesstiles.scanner.TileScanner
+import eu.hxreborn.qsboundlesstiles.prefs.PrefSpec
+import eu.hxreborn.qsboundlesstiles.prefs.Prefs
+import eu.hxreborn.qsboundlesstiles.prefs.PrefsRepositoryImpl
+import eu.hxreborn.qsboundlesstiles.provider.HookDataProvider
+import eu.hxreborn.qsboundlesstiles.ui.theme.QsTheme
 import eu.hxreborn.qsboundlesstiles.util.RootUtils
 import io.github.libxposed.service.XposedService
 import io.github.libxposed.service.XposedServiceHelper
@@ -37,389 +27,117 @@ import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.coroutines.resume
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
-import com.google.android.material.R as M
 
 class MainActivity :
-    AppCompatActivity(),
+    ComponentActivity(),
     XposedServiceHelper.OnServiceListener {
-    private lateinit var binding: ActivityMainBinding
-    private var xposedService: XposedService? = null
-    private var optionsMenu: Menu? = null
-
-    private val localPrefs by lazy {
-        getSharedPreferences(PrefsManager.PREFS_GROUP, MODE_PRIVATE)
-    }
-
-    // Remote prefs for hook sync via libxposed
+    private lateinit var viewModel: DashboardViewModel
     private var remotePrefs: SharedPreferences? = null
-
-    // Requires root to read sysui_qs_tiles, 0 if unavailable
-    private var activeQsCount: Int = 0
+    private val hookDataPrefs: SharedPreferences by lazy {
+        getSharedPreferences(HookDataProvider.PREFS_NAME, MODE_PRIVATE)
+    }
+    private var hookDataListener: SharedPreferences.OnSharedPreferenceChangeListener? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        WindowCompat.setDecorFitsSystemWindows(window, false)
-        binding = ActivityMainBinding.inflate(layoutInflater)
-        setContentView(binding.root)
-        setSupportActionBar(binding.toolbar)
-        setupEdgeToEdge()
-        setupAppBarMenuVisibility()
-        setupSlider()
-        setupResetButton()
-        setupFeedback()
-        QSBoundlessTilesApp.addServiceListener(this)
-    }
+        enableEdgeToEdge()
 
-    private fun setupAppBarMenuVisibility() {
-        binding.appBarLayout.addOnOffsetChangedListener { appBarLayout, verticalOffset ->
-            val scrollRange = appBarLayout.totalScrollRange
-            val alpha = -verticalOffset.toFloat() / scrollRange
-            optionsMenu?.let { menu ->
-                for (i in 0 until menu.size()) {
-                    menu.getItem(i).isVisible = alpha > 0.5f
-                }
+        val localPrefs = getSharedPreferences(Prefs.GROUP, MODE_PRIVATE)
+        val repository = PrefsRepositoryImpl(localPrefs) { remotePrefs }
+        viewModel =
+            ViewModelProvider(
+                this,
+                DashboardViewModelFactory(repository),
+            )[DashboardViewModelImpl::class.java]
+
+        setContent {
+            QsTheme {
+                val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+                DashboardScreen(
+                    uiState = uiState,
+                    onSavePref = { pref, value ->
+                        @Suppress("UNCHECKED_CAST")
+                        viewModel.savePref(pref as PrefSpec<Any>, value)
+                    },
+                    onRestartSystemUi = { performRestart() },
+                    onClearEvents = { clearTileEvents() },
+                )
             }
         }
-    }
 
-    private fun setupEdgeToEdge() {
-        val windowInsetsController = WindowCompat.getInsetsController(window, binding.root)
-        val isLightTheme = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) !=
-            Configuration.UI_MODE_NIGHT_YES
-        windowInsetsController.isAppearanceLightStatusBars = isLightTheme
-        windowInsetsController.isAppearanceLightNavigationBars = isLightTheme
+        val listener =
+            SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+                when (key) {
+                    HookDataProvider.KEY_TILE_EVENTS -> refreshTileEvents()
+                    HookDataProvider.KEY_HOOK_STATUS -> refreshHookStatus()
+                }
+            }
+        hookDataListener = listener
+        hookDataPrefs.registerOnSharedPreferenceChangeListener(listener)
 
-        binding.appBarLayout.statusBarForeground =
-            MaterialShapeDrawable.createWithElevationOverlay(this)
-
-        ViewCompat.setOnApplyWindowInsetsListener(binding.nestedScrollView) { view, windowInsets ->
-            val systemBars = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
-            view.updatePadding(bottom = systemBars.bottom)
-            windowInsets
-        }
+        QSBoundlessTilesApp.addServiceListener(this)
     }
 
     override fun onDestroy() {
         super.onDestroy()
         QSBoundlessTilesApp.removeServiceListener(this)
-    }
-
-    override fun onServiceBind(service: XposedService) {
-        xposedService = service
-        remotePrefs = service.getRemotePreferences(PrefsManager.PREFS_GROUP)
-        syncPrefs()
-        runOnUiThread { updateStatusCard(); loadPrefs() }
-    }
-
-    override fun onServiceDied(service: XposedService) {
-        xposedService = null
-        remotePrefs = null
+        hookDataListener?.let { hookDataPrefs.unregisterOnSharedPreferenceChangeListener(it) }
+        hookDataListener = null
     }
 
     override fun onResume() {
         super.onResume()
-        syncPrefs()
-        updateStatusCard()
-        loadPrefs()
-        refreshActiveQsCount()
+        syncPrefsToRemote()
+        refreshHookData()
+        viewModel.refreshStats(this)
     }
 
-    private fun getMaxBound(): Int =
-        localPrefs.getInt(PrefsManager.KEY_MAX_BOUND, PrefsManager.DEFAULT_MAX_BOUND)
+    override fun onServiceBind(service: XposedService) {
+        remotePrefs = service.getRemotePreferences(Prefs.GROUP)
+        viewModel.setXposedActive(true)
+        refreshHookData()
+        syncPrefsToRemote()
+    }
 
-    private fun syncPrefs() {
+    override fun onServiceDied(service: XposedService) {
+        remotePrefs = null
+        viewModel.setXposedActive(false)
+    }
+
+    private fun refreshHookData() {
+        refreshHookStatus()
+        refreshTileEvents()
+    }
+
+    private fun refreshHookStatus() {
+        val status = hookDataPrefs.getInt(HookDataProvider.KEY_HOOK_STATUS, 0)
+        viewModel.setHookStatus(status)
+    }
+
+    private fun refreshTileEvents() {
+        val raw = hookDataPrefs.getString(HookDataProvider.KEY_TILE_EVENTS, "") ?: ""
+        viewModel.setTileEvents(raw)
+    }
+
+    private fun clearTileEvents() {
+        contentResolver.call(
+            HookDataProvider.CONTENT_URI,
+            HookDataProvider.METHOD_CLEAR_EVENTS,
+            null,
+            null,
+        )
+        viewModel.setTileEvents("")
+    }
+
+    private fun syncPrefsToRemote() {
+        val state = viewModel.uiState.value as? DashboardUiState.Success ?: return
         remotePrefs?.edit(commit = true) {
-            putInt(PrefsManager.KEY_MAX_BOUND, getMaxBound())
+            Prefs.maxBound.write(this, state.prefs.maxBound)
+            Prefs.debugLogs.write(this, state.prefs.debugLogs)
         }
     }
 
-    private fun refreshActiveQsCount() {
-        lifecycleScope.launch {
-            activeQsCount = RootUtils.getActiveQsTileCount()
-            loadPrefs()
-            updateResetButtonState()
-        }
-    }
-
-    private fun setMaxBound(value: Int) {
-        val clamped = value.coerceIn(PrefsManager.DEFAULT_MAX_BOUND, PrefsManager.MAX_BOUND)
-        localPrefs.edit { putInt(PrefsManager.KEY_MAX_BOUND, clamped) }
-        remotePrefs?.edit(commit = true) { putInt(PrefsManager.KEY_MAX_BOUND, clamped) }
-    }
-
-    // Updates UI after maxBound change; skipSlider=true when called from slider listener
-    private fun applyMaxBound(
-        value: Int,
-        skipSlider: Boolean = false,
-    ) {
-        setMaxBound(value)
-        if (!skipSlider) {
-            val sliderMax = binding.maxBoundSlider.valueTo.toInt()
-            val clampedForSlider = value.coerceIn(PrefsManager.DEFAULT_MAX_BOUND, sliderMax)
-            binding.maxBoundSlider.value = clampedForSlider.toFloat()
-        }
-        binding.targetLimit.text = value.toString()
-        if (xposedService != null) binding.systemuiStatus.text = value.toString()
-        updateStatusLine(value, activeQsCount)
-        updateStatusCard()
-        updateResetButtonState()
-    }
-
-    private fun updateStatusCard() {
-        val isActive = xposedService != null
-
-        val (titleRes, iconRes, bgColorAttr, contentColorAttr) =
-            if (isActive) {
-                StatusStyle(
-                    R.string.module_active,
-                    R.drawable.ic_check_circle_24,
-                    android.R.attr.colorPrimary,
-                    M.attr.colorOnPrimary,
-                )
-            } else {
-                StatusStyle(
-                    R.string.module_inactive,
-                    R.drawable.ic_warning_24,
-                    M.attr.colorTertiary,
-                    M.attr.colorOnTertiary,
-                )
-            }
-
-        val bgColor = getThemeColor(bgColorAttr)
-        val contentColor = getThemeColor(contentColorAttr)
-        val card = binding.statusCard.statusCardRoot
-
-        card.setCardBackgroundColor(bgColor)
-        card.outlineAmbientShadowColor = bgColor
-        card.outlineSpotShadowColor = bgColor
-
-        binding.statusCard.statusIcon.setImageResource(iconRes)
-        binding.statusCard.statusIcon.imageTintList = ColorStateList.valueOf(contentColor)
-        binding.statusCard.statusTitle.setText(titleRes)
-        binding.statusCard.statusTitle.setTextColor(contentColor)
-        binding.statusCard.statusSubtitle.text =
-            getString(
-                R.string.status_active_subtitle,
-                BuildConfig.VERSION_NAME,
-                BuildConfig.VERSION_CODE,
-            )
-        binding.statusCard.statusSubtitle.setTextColor(contentColor)
-    }
-
-    private fun loadPrefs() {
-        val activeInQs = activeQsCount
-        val availableApps = TileScanner.getThirdPartyTileCount(this)
-        val recommended = activeInQs + DEFAULT_AUTO_BUFFER
-        val maxBound = getMaxBound()
-
-        binding.targetLimit.text = maxBound.toString()
-        binding.systemuiStatus.text = if (xposedService != null) maxBound.toString() else "—"
-
-        val sliderMax = availableApps.coerceAtLeast(10)
-        binding.maxBoundSlider.valueTo = sliderMax.toFloat()
-        binding.sliderMaxLabel.text = getString(R.string.slider_max_label, sliderMax)
-        val clampedValue = maxBound.coerceIn(PrefsManager.DEFAULT_MAX_BOUND, sliderMax)
-        binding.maxBoundSlider.value = clampedValue.toFloat()
-
-        binding.recommendedIndicator.isInvisible = activeInQs <= 0
-        if (activeInQs > 0) positionRecommendedTick(recommended)
-        updateStatusLine(maxBound, activeInQs)
-
-        val hasActiveQs = activeInQs > 0
-        binding.statusDivider.isGone = !hasActiveQs
-        binding.statusLineContainer.isGone = !hasActiveQs
-
-        binding.statActiveValue.text = if (activeInQs == 0) "—" else activeInQs.toString()
-        binding.statProvidersValue.text = availableApps.toString()
-        updateRootStatus()
-        updateResetButtonState()
-    }
-
-    // Aligns tick indicator with slider track position for recommended value
-    private fun positionRecommendedTick(recommended: Int) {
-        binding.maxBoundSlider.post {
-            val slider = binding.maxBoundSlider
-            val indicator = binding.recommendedIndicator
-
-            val fraction =
-                (recommended - slider.valueFrom) / (slider.valueTo - slider.valueFrom)
-
-            // Account for slider padding and center the tick
-            val trackStart =
-                slider.left + slider.paddingStart +
-                    (slider.width - slider.paddingStart - slider.paddingEnd - slider.trackWidth) / 2
-            val tickX = trackStart + (slider.trackWidth * fraction) - (indicator.width / 2f)
-
-            indicator.translationX = tickX
-        }
-    }
-
-    private fun updateRootStatus() {
-        lifecycleScope.launch {
-            val hasRoot = RootUtils.isRootAvailable()
-            binding.rootStatus.text =
-                if (hasRoot) {
-                    getString(R.string.root_available)
-                } else {
-                    getString(R.string.root_unavailable)
-                }
-            binding.rootStatus.setTextColor(
-                getThemeColor(
-                    if (hasRoot) {
-                        android.R.attr.colorPrimary
-                    } else {
-                        M.attr.colorTertiary
-                    },
-                ),
-            )
-        }
-    }
-
-    private fun updateStatusLine(
-        maxBound: Int,
-        activeInQs: Int,
-    ) {
-        val headroom = maxBound - activeInQs
-        val isOverflow = headroom < 0
-
-        val statusColor =
-            if (isOverflow) {
-                getThemeColor(M.attr.colorTertiary)
-            } else {
-                getThemeColor(android.R.attr.colorPrimary)
-            }
-
-        binding.statusLine.text =
-            if (isOverflow) {
-                getString(R.string.status_may_unbind, -headroom)
-            } else {
-                getString(R.string.status_all_bound)
-            }
-        binding.statusLine.setTextColor(statusColor)
-
-        val iconRes = if (isOverflow) R.drawable.ic_warning_24 else R.drawable.ic_check_circle_24
-        binding.tileStatusIcon.setImageResource(iconRes)
-        binding.tileStatusIcon.imageTintList = ColorStateList.valueOf(statusColor)
-    }
-
-    private var dragStartValue: Int = 0
-    private var currentSnackbar: Snackbar? = null
-
-    private fun setupSlider() {
-        binding.maxBoundSlider.addOnChangeListener { _, value, fromUser ->
-            if (fromUser) applyMaxBound(value.toInt(), skipSlider = true)
-        }
-
-        binding.maxBoundSlider.addOnSliderTouchListener(
-            object : com.google.android.material.slider.Slider.OnSliderTouchListener {
-                override fun onStartTrackingTouch(
-                    slider: com.google.android.material.slider.Slider,
-                ) {
-                    dragStartValue = slider.value.toInt()
-                }
-
-                override fun onStopTrackingTouch(
-                    slider: com.google.android.material.slider.Slider,
-                ) {
-                    val newValue = slider.value.toInt()
-                    if (dragStartValue != newValue) {
-                        showUndoSnackbar(dragStartValue, newValue)
-                    }
-                }
-            },
-        )
-    }
-
-    private fun setupResetButton() {
-        updateResetButtonState()
-        binding.resetButton.setOnClickListener {
-            if (activeQsCount > 0) {
-                val recommended = (activeQsCount + DEFAULT_AUTO_BUFFER).coerceIn(
-                    PrefsManager.DEFAULT_MAX_BOUND,
-                    PrefsManager.MAX_BOUND,
-                )
-                applyMaxBound(recommended)
-                showSnackbar(getString(R.string.apply_recommended_done))
-            } else {
-                showSnackbar(getString(R.string.apply_recommended_no_root))
-            }
-        }
-    }
-
-    private fun updateResetButtonState() {
-        val recommended = (activeQsCount + DEFAULT_AUTO_BUFFER).coerceIn(
-            PrefsManager.DEFAULT_MAX_BOUND,
-            PrefsManager.MAX_BOUND,
-        )
-        binding.resetButton.isEnabled = activeQsCount > 0 &&
-            binding.maxBoundSlider.value.toInt() != recommended
-    }
-
-    private fun showSnackbar(message: String) {
-        currentSnackbar?.dismiss()
-        currentSnackbar = Snackbar.make(binding.root, message, Snackbar.LENGTH_SHORT)
-        currentSnackbar?.show()
-    }
-
-    private fun showUndoSnackbar(
-        oldValue: Int,
-        newValue: Int,
-    ) {
-        currentSnackbar?.dismiss()
-        currentSnackbar =
-            Snackbar
-                .make(
-                    binding.root,
-                    getString(R.string.limit_changed, oldValue, newValue),
-                    Snackbar.LENGTH_LONG,
-                ).setAction(R.string.undo) {
-                    applyMaxBound(oldValue)
-                }
-        currentSnackbar?.show()
-    }
-
-    private fun setupFeedback() {
-        binding.githubIcon.setOnClickListener {
-            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(GITHUB_ISSUES_URL)))
-        }
-    }
-
-    override fun onCreateOptionsMenu(menu: Menu): Boolean {
-        menuInflater.inflate(R.menu.menu_main, menu)
-        optionsMenu = menu
-        menu.setGroupVisible(0, false)
-        return true
-    }
-
-    override fun onOptionsItemSelected(item: MenuItem): Boolean =
-        when (item.itemId) {
-            R.id.action_reset_stock -> {
-                showResetStockDialog()
-                true
-            }
-
-            R.id.action_restart_systemui -> {
-                showRestartDialog()
-                true
-            }
-
-            else -> {
-                super.onOptionsItemSelected(item)
-            }
-        }
-
-    private fun showResetStockDialog() {
-        MaterialAlertDialogBuilder(this)
-            .setTitle(R.string.reset_stock)
-            .setMessage(R.string.reset_stock_confirm)
-            .setPositiveButton(android.R.string.ok) { _, _ ->
-                applyMaxBound(PrefsManager.DEFAULT_MAX_BOUND)
-                Toast.makeText(this, R.string.reset_stock_done, Toast.LENGTH_SHORT).show()
-            }.setNegativeButton(android.R.string.cancel, null)
-            .show()
-    }
-
-    private fun showRestartDialog() {
+    private fun performRestart() {
         lifecycleScope.launch {
             if (!RootUtils.isRootAvailable()) {
                 Toast
@@ -430,35 +148,17 @@ class MainActivity :
                     ).show()
                 return@launch
             }
-
-            MaterialAlertDialogBuilder(this@MainActivity)
-                .setTitle(R.string.restart_systemui)
-                .setMessage(R.string.restart_warning)
-                .setPositiveButton(android.R.string.ok) { _, _ -> performRestart() }
-                .setNegativeButton(android.R.string.cancel, null)
-                .show()
-        }
-    }
-
-    private fun performRestart() {
-        lifecycleScope.launch {
             val success = RootUtils.restartSystemUI()
             val msg =
                 if (success) R.string.restart_systemui_success else R.string.restart_systemui_failed
             Toast.makeText(this@MainActivity, msg, Toast.LENGTH_SHORT).show()
-
-            if (success) {
-                val rebound = awaitSystemUiRebind()
-                updateStatusCard()
-                loadPrefs()
-                if (!rebound) {
-                    Toast
-                        .makeText(
-                            this@MainActivity,
-                            R.string.systemui_still_restarting,
-                            Toast.LENGTH_SHORT,
-                        ).show()
-                }
+            if (success && !awaitSystemUiRebind()) {
+                Toast
+                    .makeText(
+                        this@MainActivity,
+                        R.string.systemui_still_restarting,
+                        Toast.LENGTH_SHORT,
+                    ).show()
             }
         }
     }
@@ -479,21 +179,4 @@ class MainActivity :
                 cont.invokeOnCancellation { QSBoundlessTilesApp.removeServiceListener(listener) }
             }
         } ?: false
-
-    private fun getThemeColor(attrResId: Int): Int =
-        obtainStyledAttributes(intArrayOf(attrResId)).use { it.getColor(0, 0) }
-
-    private data class StatusStyle(
-        val titleRes: Int,
-        val iconRes: Int,
-        val bgColorAttr: Int,
-        val contentColorAttr: Int,
-    )
-
-    companion object {
-        // Headroom added to active tile count for recommended limit
-        private const val DEFAULT_AUTO_BUFFER = 2
-        private const val GITHUB_ISSUES_URL =
-            "https://github.com/hxreborn/qs-boundless-tiles/issues/new/choose"
-    }
 }
