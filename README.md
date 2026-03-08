@@ -28,7 +28,7 @@ Tested on Pixel and LineageOS (Android 16). Other OEM ROMs may vary.
 ## System Overhead
 
 - RAM: Raising the concurrent binding limit keeps more tile services bound while QS is open, so memory use can increase with tile count and provider behavior. After QS is closed and SystemUI unbinds services (~30s), memory behavior is effectively the same as stock.
-- Battery: The module does not schedule periodic work; power impact mainly comes from the extra bound tile services and what those apps do.
+- Battery: The module does not schedule periodic work, hold wakelocks, or use network. Event logging uses a lightweight synchronous binder call with no background overhead.
 - Stability: The hook prevents memory-pressure downscaling of `mMaxBound`, so aggressive settings can worsen jank or process churn on low-RAM devices.
 
 If you encounter issues, please [file an issue on GitHub](https://github.com/hxreborn/qs-boundless-tiles/issues/new/choose).

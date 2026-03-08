@@ -65,6 +65,16 @@ class MainActivity :
             }
         }
 
+        val listener =
+            SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+                when (key) {
+                    HookDataProvider.KEY_TILE_EVENTS -> refreshTileEvents()
+                    HookDataProvider.KEY_HOOK_STATUS -> refreshHookStatus()
+                }
+            }
+        hookDataListener = listener
+        hookDataPrefs.registerOnSharedPreferenceChangeListener(listener)
+
         QSBoundlessTilesApp.addServiceListener(this)
     }
 
@@ -87,18 +97,6 @@ class MainActivity :
         viewModel.setXposedActive(true)
         refreshHookData()
         syncPrefsToRemote()
-
-        if (hookDataListener == null) {
-            val listener =
-                SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-                    when (key) {
-                        HookDataProvider.KEY_TILE_EVENTS -> refreshTileEvents()
-                        HookDataProvider.KEY_HOOK_STATUS -> refreshHookStatus()
-                    }
-                }
-            hookDataListener = listener
-            hookDataPrefs.registerOnSharedPreferenceChangeListener(listener)
-        }
     }
 
     override fun onServiceDied(service: XposedService) {

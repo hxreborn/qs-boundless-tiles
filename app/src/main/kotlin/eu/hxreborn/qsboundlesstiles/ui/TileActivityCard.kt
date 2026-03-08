@@ -20,6 +20,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
+import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -69,7 +73,7 @@ internal data class BadgeStyle(
 
 @Stable
 internal class TileActivityState {
-    var expanded by mutableStateOf(true)
+    var expanded by mutableStateOf(false)
     var searchQuery by mutableStateOf("")
     var selectedTiles by mutableStateOf(emptySet<String>())
     var selectedTypes by mutableStateOf(emptySet<EventType>())
@@ -79,6 +83,7 @@ internal class TileActivityState {
 @Composable
 internal fun rememberTileActivityState() = remember { TileActivityState() }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun TileActivityCard(
     events: List<TileEvent>,
@@ -156,45 +161,95 @@ internal fun TileActivityCard(
                 Column {
                     if (events.isNotEmpty()) {
                         Spacer(Modifier.height(Tokens.SpacingSm))
-                        TextField(
-                            value = activityState.searchQuery,
-                            onValueChange = { activityState.searchQuery = it },
-                            modifier = Modifier.fillMaxWidth(),
-                            placeholder = {
-                                Text(stringResource(R.string.search_tiles))
-                            },
-                            leadingIcon = {
-                                Icon(
-                                    painterResource(R.drawable.ic_search_24),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(18.dp),
-                                )
-                            },
-                            trailingIcon = {
-                                if (activityState.searchQuery.isNotEmpty()) {
-                                    Icon(
-                                        painterResource(R.drawable.ic_close_24),
-                                        contentDescription = null,
-                                        modifier =
-                                            Modifier
-                                                .size(18.dp)
-                                                .clickable { activityState.searchQuery = "" },
-                                    )
+
+                        var dropdownExpanded by remember { mutableStateOf(false) }
+                        val suggestions =
+                            remember(uniqueTiles, activityState.searchQuery) {
+                                val q = activityState.searchQuery
+                                if (q.isBlank()) {
+                                    emptyList()
+                                } else {
+                                    uniqueTiles.filter { it.contains(q, ignoreCase = true) }
                                 }
-                            },
-                            singleLine = true,
-                            textStyle = MaterialTheme.typography.bodySmall,
-                            shape = RoundedCornerShape(28.dp),
-                            colors =
-                                TextFieldDefaults.colors(
-                                    unfocusedContainerColor =
-                                        MaterialTheme.colorScheme.surfaceContainerHigh,
-                                    focusedContainerColor =
-                                        MaterialTheme.colorScheme.surfaceContainerHigh,
-                                    unfocusedIndicatorColor = Color.Transparent,
-                                    focusedIndicatorColor = Color.Transparent,
-                                ),
-                        )
+                            }
+
+                        ExposedDropdownMenuBox(
+                            expanded = dropdownExpanded && suggestions.isNotEmpty(),
+                            onExpandedChange = { dropdownExpanded = it },
+                        ) {
+                            TextField(
+                                value = activityState.searchQuery,
+                                onValueChange = {
+                                    activityState.searchQuery = it
+                                    dropdownExpanded = true
+                                },
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .menuAnchor(
+                                            ExposedDropdownMenuAnchorType.PrimaryEditable,
+                                            true,
+                                        ),
+                                placeholder = {
+                                    Text(stringResource(R.string.search_tiles))
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        painterResource(R.drawable.ic_search_24),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp),
+                                    )
+                                },
+                                trailingIcon = {
+                                    if (activityState.searchQuery.isNotEmpty()) {
+                                        Icon(
+                                            painterResource(R.drawable.ic_close_24),
+                                            contentDescription = null,
+                                            modifier =
+                                                Modifier
+                                                    .size(18.dp)
+                                                    .clickable {
+                                                        activityState.searchQuery = ""
+                                                        dropdownExpanded = false
+                                                    },
+                                        )
+                                    }
+                                },
+                                singleLine = true,
+                                textStyle = MaterialTheme.typography.bodySmall,
+                                shape = RoundedCornerShape(28.dp),
+                                colors =
+                                    TextFieldDefaults.colors(
+                                        unfocusedContainerColor =
+                                            MaterialTheme.colorScheme.surfaceContainerHigh,
+                                        focusedContainerColor =
+                                            MaterialTheme.colorScheme.surfaceContainerHigh,
+                                        unfocusedIndicatorColor = Color.Transparent,
+                                        focusedIndicatorColor = Color.Transparent,
+                                    ),
+                            )
+                            if (suggestions.isNotEmpty()) {
+                                ExposedDropdownMenu(
+                                    expanded = dropdownExpanded,
+                                    onDismissRequest = { dropdownExpanded = false },
+                                ) {
+                                    suggestions.forEach { tile ->
+                                        DropdownMenuItem(
+                                            text = {
+                                                Text(
+                                                    tile,
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                )
+                                            },
+                                            onClick = {
+                                                activityState.searchQuery = tile
+                                                dropdownExpanded = false
+                                            },
+                                        )
+                                    }
+                                }
+                            }
+                        }
 
                         Spacer(Modifier.height(Tokens.SpacingSm))
                         Row(
@@ -380,7 +435,7 @@ internal fun TileEventRow(
             }
             event.durationMs?.let { ms ->
                 Spacer(Modifier.width(Tokens.SpacingSm))
-                DurationBadge(ms)
+                DurationBadge(ms, event.type)
             }
         }
 
@@ -550,19 +605,34 @@ internal fun eventBadgeStyle(type: EventType): BadgeStyle =
     }
 
 @Composable
-private fun DurationBadge(ms: Long) {
+private fun DurationBadge(
+    ms: Long,
+    eventType: EventType,
+) {
+    val isColdStart = eventType == EventType.COLD_START
+    val containerColor =
+        if (isColdStart) {
+            MaterialTheme.colorScheme.errorContainer
+        } else {
+            MaterialTheme.colorScheme.surfaceVariant
+        }
+    val contentColor =
+        if (isColdStart) {
+            MaterialTheme.colorScheme.onErrorContainer
+        } else {
+            Color.Unspecified
+        }
     Box(
         modifier =
             Modifier
-                .background(
-                    MaterialTheme.colorScheme.surfaceVariant,
-                    Tokens.ChipShape,
-                ).padding(horizontal = 6.dp, vertical = 2.dp),
+                .background(containerColor, Tokens.ChipShape)
+                .padding(horizontal = 6.dp, vertical = 2.dp),
     ) {
         Text(
-            "${ms}ms",
+            if (isColdStart) "bind: ${ms}ms" else "${ms}ms",
             style = MaterialTheme.typography.labelSmall,
             fontFamily = FontFamily.Monospace,
+            color = contentColor,
         )
     }
 }
