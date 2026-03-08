@@ -64,12 +64,13 @@ internal fun CollapsibleCardHeader(
 @Composable
 internal fun TileProvidersCard(
     providers: List<TileProviderInfo>,
+    modifier: Modifier = Modifier,
     initialExpanded: Boolean = false,
 ) {
     var expanded by remember { mutableStateOf(initialExpanded) }
 
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         shape = Tokens.CardShape,
         color = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {

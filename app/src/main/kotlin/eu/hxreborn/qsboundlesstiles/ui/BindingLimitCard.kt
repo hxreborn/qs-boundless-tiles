@@ -27,6 +27,7 @@ import eu.hxreborn.qsboundlesstiles.ui.theme.Tokens
 internal fun BindingLimitCard(
     state: DashboardUiState.Success,
     onValueCommit: (Int) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val range = Prefs.maxBound.range!!
     val clamped =
@@ -38,7 +39,7 @@ internal fun BindingLimitCard(
     }
 
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         shape = Tokens.CardShape,
         color = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {

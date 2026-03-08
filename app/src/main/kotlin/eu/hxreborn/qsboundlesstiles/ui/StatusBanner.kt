@@ -34,7 +34,10 @@ internal fun statusLevel(state: DashboardUiState.Success?): StatusLevel =
     }
 
 @Composable
-internal fun StatusBanner(state: DashboardUiState.Success?) {
+internal fun StatusBanner(
+    state: DashboardUiState.Success?,
+    modifier: Modifier = Modifier,
+) {
     val level = statusLevel(state)
     val containerColor =
         when (level) {
@@ -56,7 +59,7 @@ internal fun StatusBanner(state: DashboardUiState.Success?) {
         }
 
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         shape = Tokens.CardShape,
         color = containerColor,
     ) {
@@ -89,7 +92,7 @@ internal fun StatusBanner(state: DashboardUiState.Success?) {
 
 @Composable
 internal fun statusTitle(state: DashboardUiState.Success?): String {
-    val isActive = state?.xposedActive == true
+    val isActive = state?.xposedActive ?: false
     val isFullyHooked =
         (state?.hookStatus ?: 0) and TileServicesHook.HOOK_CONSTRUCTOR != 0
     return when {
@@ -102,19 +105,32 @@ internal fun statusTitle(state: DashboardUiState.Success?): String {
 
 @Composable
 internal fun statusSubtitle(state: DashboardUiState.Success?): String {
-    val isActive = state?.xposedActive == true
+    val isActive = state?.xposedActive ?: false
     val isFullyHooked =
         (state?.hookStatus ?: 0) and TileServicesHook.HOOK_CONSTRUCTOR != 0
     return when {
-        state == null || !isActive -> stringResource(R.string.module_inactive_subtitle)
-        !isFullyHooked -> stringResource(R.string.module_partial_subtitle)
-        !state.hasRoot -> stringResource(R.string.module_no_root_subtitle)
-        state.activeQsCount > state.prefs.maxBound ->
+        state == null || !isActive -> {
+            stringResource(R.string.module_inactive_subtitle)
+        }
+
+        !isFullyHooked -> {
+            stringResource(R.string.module_partial_subtitle)
+        }
+
+        !state.hasRoot -> {
+            stringResource(R.string.module_no_root_subtitle)
+        }
+
+        state.activeQsCount > state.prefs.maxBound -> {
             stringResource(
                 R.string.status_cold_start,
                 state.activeQsCount - state.prefs.maxBound,
                 state.activeQsCount,
             )
-        else -> stringResource(R.string.status_all_bound, state.activeQsCount)
+        }
+
+        else -> {
+            stringResource(R.string.status_all_bound, state.activeQsCount)
+        }
     }
 }

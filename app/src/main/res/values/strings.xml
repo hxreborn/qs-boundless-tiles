@@ -1,60 +1,53 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">QS Boundless Tiles</string>
-    <string name="app_desc">Keep Quick Settings tiles responsive by keeping their TileService bound</string>
+    <string name="app_desc">Raises the stock 3-tile binding limit so third-party QS tiles skip the freeze-and-rebind cycle</string>
 
-    <!-- Status Card -->
+    <!-- Status banner -->
     <string name="module_active">Module active</string>
-    <string name="module_inactive">Module inactive</string>
-    <string name="status_active_subtitle">%1$s (%2$d) \u2014 by hxreborn</string>
+    <string name="module_partially_active">Hooks partially active</string>
+    <string name="module_inactive">Hooks not loaded</string>
+    <string name="module_partial_subtitle">Some hooks unavailable on this Android version</string>
+    <string name="module_inactive_subtitle">Enable in LSPosed + add SystemUI scope, then reboot</string>
+    <string name="module_no_root_title">Limited info</string>
+    <string name="module_no_root_subtitle">Root needed to count tiles and restart SystemUI</string>
 
-    <!-- Tile Limit Card -->
-    <string name="tile_limit_title">Tile binding limit</string>
-    <string name="tile_limit_target_subtitle">How many tiles SystemUI keeps preloaded</string>
-    <string name="status_all_bound">All tiles stay bound</string>
-    <string name="status_may_unbind">Over limit \u2014 %d may unbind</string>
+    <!-- Status subtitle variants -->
+    <string name="status_all_bound">All %1$d tiles can bind concurrently</string>
+    <string name="status_cold_start">%1$d of %2$d tiles may cold-start</string>
 
-    <!-- Tile Statistics -->
-    <string name="stat_active_qs">Active QS tiles</string>
-    <string name="stat_active_caption">Tiles placed in QS panel</string>
-    <string name="stat_providers">Available tile providers</string>
-    <string name="stat_providers_caption">Third-party apps with tile services</string>
-    <string name="stat_systemui">SystemUI</string>
-    <string name="systemui_caption">Current active limit in memory</string>
-    <string name="stat_root">Root privileges</string>
-    <string name="stat_root_caption">Required to restart SystemUI</string>
-    <string name="root_available">Available</string>
-    <string name="root_unavailable">Unavailable</string>
-    <string name="root_symbol">#</string>
+    <!-- Tile Limit -->
+    <string name="tile_limit_title">Third-party binding limit</string>
+    <string name="tile_limit_subtitle">Max concurrent TileService bindings. Stock is 3.</string>
+    <!-- Stat chips -->
+    <string name="stat_warm">%d warm</string>
+    <string name="stat_cold">%d cold</string>
+    <string name="stat_died">%d died</string>
+    <string name="cold_start_latency">Cold-start latency: %1$dms</string>
 
-    <!-- Slider -->
-    <string name="slider_min_label">3</string>
-    <string name="slider_max_label">%d</string>
-    <string name="recommended_label">Recommended</string>
-    <string name="limit_changed">Limit changed: %1$d \u2192 %2$d</string>
-    <string name="undo">Undo</string>
+    <!-- Tile providers -->
+    <string name="tile_providers_title_count">Tile providers (%d)</string>
+    <string name="tile_provider_count">%d tile(s)</string>
 
-    <!-- Menu Actions -->
-    <string name="apply_recommended">Apply recommended</string>
-    <string name="apply_recommended_confirm">Set limit to %d (active tiles + buffer)?</string>
-    <string name="apply_recommended_done">Applied recommended settings</string>
-    <string name="apply_recommended_no_root">Root required to detect active tiles</string>
-    <string name="reset_stock">Reset to stock</string>
-    <string name="reset_stock_confirm">Reset limit to 3 (Android default)?</string>
-    <string name="reset_stock_done">Reset to stock</string>
+    <!-- Tile activity -->
+    <string name="tile_activity_title">Recent Activity</string>
+    <string name="clear_log">Clear Log</string>
+    <string name="clear_log_confirm_title">Clear all events?</string>
+    <string name="clear_log_confirm_text">This will remove all recorded tile events.</string>
+    <string name="event_system">System</string>
+<string name="search_tiles">Search tiles\u2026</string>
+    <string name="latency">Latency: %1$dms</string>
 
     <!-- Restart SystemUI -->
     <string name="restart_systemui">Restart SystemUI</string>
-    <string name="restart_warning">Applies pending changes. May interrupt ongoing tasks.</string>
+    <string name="restart_warning">Kills and restarts the SystemUI process. Notification shade will close and tiles rebind with the new limit.</string>
+    <string name="restart_requires_root">Root access required</string>
     <string name="restart_systemui_no_root">Root access required to restart SystemUI</string>
     <string name="restart_systemui_success">SystemUI restarted</string>
     <string name="restart_systemui_failed">Failed to restart SystemUI</string>
     <string name="systemui_still_restarting">SystemUI still restarting</string>
 
-    <!-- Feedback Card -->
-    <string name="feedback_title">Having trouble?</string>
-    <string name="feedback_subtitle">Report issues or give feedback</string>
-
-    <!-- Misc -->
+    <!-- Developer -->
     <string name="github">GitHub</string>
+    <string name="debug_logging">Debug logging</string>
 </resources>

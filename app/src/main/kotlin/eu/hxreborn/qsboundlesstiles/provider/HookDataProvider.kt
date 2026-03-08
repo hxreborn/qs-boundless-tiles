@@ -37,7 +37,6 @@ class HookDataProvider : ContentProvider() {
                     putString(KEY_TILE_EVENTS, "")
                 }
             }
-
         }
         return null
     }

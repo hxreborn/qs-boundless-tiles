@@ -1,6 +1,6 @@
 # QS Boundless Tiles
 
-LSPosed module that keeps third-party Quick Settings tiles responsive on Android 13+.
+LSPosed module that raises the stock concurrent binding cap for third-party Quick Settings tiles on Android 13+.
 
 ![Android CI](https://github.com/hxreborn/qs-boundless-tiles/actions/workflows/android-ci.yml/badge.svg)
 ![Kotlin](https://img.shields.io/badge/Kotlin-2.1.21-7F52FF?style=flat&logo=kotlin&logoColor=white)
@@ -8,36 +8,28 @@ LSPosed module that keeps third-party Quick Settings tiles responsive on Android
 
 ## Background
 
-Since Nougat (2016) Android has limited third party Quick Settings to [3 active tiles](https://android.googlesource.com/platform/frameworks/base/+/d5a204f16e7c71ffdbc6c8307a4134dcc1efd60d/packages/SystemUI/src/com/android/systemui/qs/external/TileServices.java#37). SystemUI manages tile bindings via a visibility-based priority queue, evicting services for non-visible tiles once the cap is reached. The Android 13 optimizer then freezes these evicted services which causes a ~3-5 second delay when they are eventually tapped.
-
-<details>
-<summary>Example: 10 third-party tiles installed</summary>
-
-1. You pull down the QS panel
-2. SystemUI binds the 3 most visible tiles using its visibility-based priority queue
-3. The remaining 7 are evicted and frozen by CachedAppOptimizer
-4. You tap an inactive tile and wait 3-5 seconds for the unfreeze-and-rebind cycle to complete
-</details>
+Android limits third-party Quick Settings tiles to [3 concurrent bindings](https://android.googlesource.com/platform/frameworks/base/+/d5a204f16e7c71ffdbc6c8307a4134dcc1efd60d/packages/SystemUI/src/com/android/systemui/qs/external/TileServices.java#37) by default (`TileServices.mMaxBound = 3`).
+When the panel opens, SystemUI recalculates allowances and unbinds the rest. On many ROMs, unbound services may be frozen, so tapping them can trigger an unfreeze/rebind delay.
+Tiles still [unbind ~30 seconds after the panel closes](https://android.googlesource.com/platform/frameworks/base/+/refs/heads/main/packages/SystemUI/src/com/android/systemui/qs/external/TileServiceManager.java#73).
 
 ## How it works
 
-This module uses the modern Xposed API to hook into `SystemUI` and raise the binding cap, allowing all your tiles to stay warm and responsive without the lag russian roulette.
+The module hooks `SystemUI` via the modern Xposed API and raises the binding cap so your tiles can stay bound while QS is open.
 
 ## Requirements
 
 - Android 13+ (API 33+)
 - LSPosed (API 100)
 - Scope: `com.android.systemui`
+- Root on Android 14+ for tile scanning and `Restart SystemUI`
 
-Tested on Pixel and LineageOS (Android 16). OEM ROMs (Samsung, Xiaomi, etc.) untested. Root required on Android 14+ for tile scanning and SystemUI restart.
+Tested on Pixel and LineageOS (Android 16). Other OEM ROMs may vary.
 
 ## System Overhead
 
-**Memory Footprint**: Each tile uses ~10-30 MB. Even with 20+ tiles active, the total RAM usage is virtually imperceptible on any 6GB+ device.
-
-**Battery & Wakeclocks**: No idle drain or unnecessary wakeups. Power consumption depends entirely on what your active tiles do.
-
-**Stability**: Higher binding limits increase active connections in SystemUI. Poorly coded tiles may cause issues on budget devices at extremely high limits.
+- RAM: Raising the concurrent binding limit keeps more tile services bound while QS is open, so memory use can increase with tile count and provider behavior. After QS is closed and SystemUI unbinds services (~30s), memory behavior is effectively the same as stock.
+- Battery: The module does not schedule periodic work; power impact mainly comes from the extra bound tile services and what those apps do.
+- Stability: The hook prevents memory-pressure downscaling of `mMaxBound`, so aggressive settings can worsen jank or process churn on low-RAM devices.
 
 If you encounter issues, please [file an issue on GitHub](https://github.com/hxreborn/qs-boundless-tiles/issues/new/choose).
 
@@ -48,37 +40,27 @@ If you encounter issues, please [file an issue on GitHub](https://github.com/hxr
    <a href="../../releases"><img src=".github/assets/badge_github.png" height="60" alt="Get it on GitHub" /></a>
    <a href="http://apps.obtainium.imranr.dev/redirect.html?r=obtainium://app/%7B%22id%22%3A%22eu.hxreborn.qsboundlesstiles%22%2C%22url%22%3A%22https%3A%2F%2Fgithub.com%2Fhxreborn%2Fqs-boundless-tiles%22%2C%22author%22%3A%22rafareborn%22%2C%22name%22%3A%22QS%20Boundless%20Tiles%22%2C%22additionalSettings%22%3A%22%7B%5C%22includePrereleases%5C%22%3Afalse%7D%22%7D"><img src=".github/assets/badge_obtainium.png" height="60" alt="Get it on Obtainium" /></a>
 
-2. Install and enable the module in [LSPosed](https://github.com/JingMatrix/LSPosed)
-3. Scope to `com.android.systemui`
-4. Restart SystemUI or reboot the device
-5. Open the app and adjust the slider (grant root for auto-calculated optimal limit)
+2. Install and enable the module in [LSPosed](https://github.com/JingMatrix/LSPosed).
+3. Scope to `com.android.systemui`.
+4. Restart SystemUI or reboot the device.
+5. Open the app and adjust the concurrent binding limit slider.
 
 ## Build
 
-1. Install JDK 21, Android SDK
+```bash
+git clone --recurse-submodules https://github.com/hxreborn/qs-boundless-tiles.git
+cd qs-boundless-tiles
+./gradlew buildLibxposed
+./gradlew assembleRelease
+```
 
-2. Configure SDK path in `local.properties`
+Requires JDK 21 and Android SDK. Configure `local.properties`:
 
-   ```properties
-   sdk.dir=/path/to/android/sdk
-   ```
+```properties
+sdk.dir=/path/to/android/sdk
+```
 
-3. Build APK
-
-   ```bash
-   ./gradlew assembleRelease
-   ```
-
-4. (Optional) Sign release builds via `signing.properties` or environment variables
-
-   ```properties
-   keystore.path=/path/to/your/keystore.jks
-   keystore.password=<keystore password>
-   key.alias=<key alias>
-   key.password=<key password>
-   ```
-
-   Unsigned builds remain reproducible.
+Optional release signing (`signing.properties` or `RELEASE_*` Gradle/env properties).
 
 ## License
 

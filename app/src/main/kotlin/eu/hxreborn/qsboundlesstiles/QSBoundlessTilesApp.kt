@@ -24,6 +24,7 @@ class QSBoundlessTilesApp : Application() {
     }
 
     companion object {
+        @Volatile
         var service: XposedService? = null
             private set
 
