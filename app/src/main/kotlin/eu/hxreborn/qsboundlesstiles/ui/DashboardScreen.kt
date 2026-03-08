@@ -10,9 +10,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsBottomHeight
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -48,6 +50,33 @@ fun DashboardScreen(
 ) {
     var showRestartDialog by remember { mutableStateOf(false) }
     val state = uiState as? DashboardUiState.Success
+    val activityState = rememberTileActivityState()
+
+    val filteredReversed =
+        remember(
+            state?.tileEvents,
+            activityState.searchQuery,
+            activityState.selectedTiles,
+            activityState.selectedTypes,
+        ) {
+            val events = state?.tileEvents ?: emptyList()
+            events
+                .filter { e ->
+                    val name = e.tileName ?: "System"
+                    (
+                        activityState.searchQuery.isBlank() ||
+                            name.contains(activityState.searchQuery, true)
+                    ) &&
+                        (
+                            activityState.selectedTiles.isEmpty() ||
+                                name in activityState.selectedTiles
+                        ) &&
+                        (
+                            activityState.selectedTypes.isEmpty() ||
+                                e.type in activityState.selectedTypes
+                        )
+                }.reversed()
+        }
 
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
@@ -66,13 +95,14 @@ fun DashboardScreen(
                 PaddingValues(
                     top = innerPadding.calculateTopPadding() + 8.dp,
                     bottom = innerPadding.calculateBottomPadding() + 24.dp,
-                    start = Tokens.ScreenHorizontalPadding,
-                    end = Tokens.ScreenHorizontalPadding,
                 ),
             verticalArrangement = Arrangement.spacedBy(Tokens.SpacingMd),
         ) {
             item(key = "status") {
-                StatusBanner(state = state)
+                StatusBanner(
+                    state = state,
+                    modifier = Modifier.padding(horizontal = Tokens.ScreenHorizontalPadding),
+                )
             }
 
             if (state != null) {
@@ -85,26 +115,64 @@ fun DashboardScreen(
                                 value.coerceIn(Prefs.maxBound.range!!),
                             )
                         },
+                        modifier = Modifier.padding(horizontal = Tokens.ScreenHorizontalPadding),
                     )
                 }
 
                 if (state.tileProviders.isNotEmpty()) {
                     item(key = "providers") {
-                        TileProvidersCard(providers = state.tileProviders)
+                        TileProvidersCard(
+                            providers = state.tileProviders,
+                            modifier =
+                                Modifier.padding(
+                                    horizontal = Tokens.ScreenHorizontalPadding,
+                                ),
+                        )
                     }
                 }
 
-                item(key = "activity") {
+                item(key = "activity_header") {
                     TileActivityCard(
                         events = state.tileEvents,
+                        activityState = activityState,
                         onClear = onClearEvents,
+                        modifier = Modifier.padding(horizontal = Tokens.ScreenHorizontalPadding),
                     )
+                }
+
+                if (activityState.expanded && filteredReversed.isNotEmpty()) {
+                    items(
+                        items = filteredReversed,
+                        key = { it.timestampMs },
+                        contentType = { "event" },
+                    ) { event ->
+                        Column {
+                            HorizontalDivider(
+                                color =
+                                    MaterialTheme.colorScheme.outlineVariant
+                                        .copy(alpha = 0.5f),
+                            )
+                            TileEventRow(
+                                event = event,
+                                expanded = activityState.expandedTimestamp == event.timestampMs,
+                                onToggle = {
+                                    activityState.expandedTimestamp =
+                                        if (activityState.expandedTimestamp == event.timestampMs) {
+                                            null
+                                        } else {
+                                            event.timestampMs
+                                        }
+                                },
+                            )
+                        }
+                    }
                 }
 
                 item(key = "actions") {
                     RestartAction(
                         hasRoot = state.hasRoot,
                         onClick = { showRestartDialog = true },
+                        modifier = Modifier.padding(horizontal = Tokens.ScreenHorizontalPadding),
                     )
                 }
             }
@@ -138,8 +206,8 @@ fun DashboardScreen(
 @Composable
 private fun RestartAction(
     hasRoot: Boolean,
-    modifier: Modifier = Modifier,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Column(
         modifier = modifier.padding(vertical = Tokens.SpacingSm),
@@ -161,8 +229,6 @@ private fun RestartAction(
         }
     }
 }
-
-// region Previews
 
 private val previewProviders =
     listOf(
@@ -230,5 +296,3 @@ private fun DashboardPreview() {
         )
     }
 }
-
-// endregion

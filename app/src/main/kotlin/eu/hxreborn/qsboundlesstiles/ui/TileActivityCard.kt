@@ -29,6 +29,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -66,27 +67,26 @@ internal data class BadgeStyle(
     val tintColor: Color,
 )
 
+@Stable
+internal class TileActivityState {
+    var expanded by mutableStateOf(true)
+    var searchQuery by mutableStateOf("")
+    var selectedTiles by mutableStateOf(emptySet<String>())
+    var selectedTypes by mutableStateOf(emptySet<EventType>())
+    var expandedTimestamp by mutableStateOf<Long?>(null)
+}
+
+@Composable
+internal fun rememberTileActivityState() = remember { TileActivityState() }
+
 @Composable
 internal fun TileActivityCard(
     events: List<TileEvent>,
+    activityState: TileActivityState,
     onClear: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    var expanded by remember { mutableStateOf(true) }
     var showClearDialog by remember { mutableStateOf(false) }
-    var searchQuery by remember { mutableStateOf("") }
-    var selectedTiles by remember { mutableStateOf(emptySet<String>()) }
-    var selectedTypes by remember { mutableStateOf(emptySet<EventType>()) }
-    var expandedTimestamp by remember { mutableStateOf<Long?>(null) }
-
-    val filtered =
-        remember(events, searchQuery, selectedTiles, selectedTypes) {
-            events.filter { e ->
-                val name = e.tileName ?: "System"
-                (searchQuery.isBlank() || name.contains(searchQuery, true)) &&
-                    (selectedTiles.isEmpty() || name in selectedTiles) &&
-                    (selectedTypes.isEmpty() || e.type in selectedTypes)
-            }
-        }
 
     val uniqueTiles =
         remember(events) {
@@ -114,20 +114,20 @@ internal fun TileActivityCard(
         }
 
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         shape = Tokens.CardShape,
         color = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
         Column(modifier = Modifier.padding(Tokens.SpacingLg)) {
             val chevronRotation by animateFloatAsState(
-                if (expanded) 180f else 0f,
+                if (activityState.expanded) 180f else 0f,
                 label = "chevron",
             )
             Row(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .clickable { expanded = !expanded },
+                        .clickable { activityState.expanded = !activityState.expanded },
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
@@ -152,13 +152,13 @@ internal fun TileActivityCard(
                 )
             }
 
-            AnimatedVisibility(visible = expanded) {
+            AnimatedVisibility(visible = activityState.expanded) {
                 Column {
                     if (events.isNotEmpty()) {
                         Spacer(Modifier.height(Tokens.SpacingSm))
                         TextField(
-                            value = searchQuery,
-                            onValueChange = { searchQuery = it },
+                            value = activityState.searchQuery,
+                            onValueChange = { activityState.searchQuery = it },
                             modifier = Modifier.fillMaxWidth(),
                             placeholder = {
                                 Text(stringResource(R.string.search_tiles))
@@ -171,14 +171,14 @@ internal fun TileActivityCard(
                                 )
                             },
                             trailingIcon = {
-                                if (searchQuery.isNotEmpty()) {
+                                if (activityState.searchQuery.isNotEmpty()) {
                                     Icon(
                                         painterResource(R.drawable.ic_close_24),
                                         contentDescription = null,
                                         modifier =
                                             Modifier
                                                 .size(18.dp)
-                                                .clickable { searchQuery = "" },
+                                                .clickable { activityState.searchQuery = "" },
                                     )
                                 }
                             },
@@ -202,41 +202,18 @@ internal fun TileActivityCard(
                             horizontalArrangement = Arrangement.spacedBy(Tokens.SpacingSm),
                         ) {
                             EventType.entries.forEach { type ->
-                                val selected = type in selectedTypes
-                                val style = eventBadgeStyle(type)
-                                Surface(
-                                    onClick = {
-                                        selectedTypes =
-                                            if (selected) selectedTypes - type else selectedTypes + type
+                                EventTypeChip(
+                                    type = type,
+                                    selected = type in activityState.selectedTypes,
+                                    onToggle = {
+                                        activityState.selectedTypes =
+                                            if (type in activityState.selectedTypes) {
+                                                activityState.selectedTypes - type
+                                            } else {
+                                                activityState.selectedTypes + type
+                                            }
                                     },
-                                    shape = Tokens.ChipShape,
-                                    color = if (selected) style.backgroundColor else Color.Transparent,
-                                    border =
-                                        if (selected) {
-                                            null
-                                        } else {
-                                            BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-                                        },
-                                ) {
-                                    Row(
-                                        modifier =
-                                            Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                    ) {
-                                        Icon(
-                                            painterResource(style.iconRes),
-                                            contentDescription = null,
-                                            modifier = Modifier.size(14.dp),
-                                            tint = style.tintColor,
-                                        )
-                                        Text(
-                                            type.name.replace('_', ' '),
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = if (selected) style.tintColor else Color.Unspecified,
-                                        )
-                                    }
-                                }
+                                )
                             }
                         }
 
@@ -247,11 +224,15 @@ internal fun TileActivityCard(
                                 horizontalArrangement = Arrangement.spacedBy(Tokens.SpacingSm),
                             ) {
                                 uniqueTiles.forEach { tile ->
-                                    val selected = tile in selectedTiles
+                                    val selected = tile in activityState.selectedTiles
                                     Surface(
                                         onClick = {
-                                            selectedTiles =
-                                                if (selected) selectedTiles - tile else selectedTiles + tile
+                                            activityState.selectedTiles =
+                                                if (selected) {
+                                                    activityState.selectedTiles - tile
+                                                } else {
+                                                    activityState.selectedTiles + tile
+                                                }
                                         },
                                         shape = Tokens.ChipShape,
                                         color =
@@ -273,7 +254,10 @@ internal fun TileActivityCard(
                                         Text(
                                             tile,
                                             modifier =
-                                                Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                                Modifier.padding(
+                                                    horizontal = 8.dp,
+                                                    vertical = 4.dp,
+                                                ),
                                             style = MaterialTheme.typography.labelSmall,
                                             color =
                                                 if (selected) {
@@ -311,7 +295,9 @@ internal fun TileActivityCard(
                                         iconRes = R.drawable.ic_warning_24,
                                         containerColor = MaterialTheme.colorScheme.errorContainer,
                                         contentColor = MaterialTheme.colorScheme.onErrorContainer,
-                                        text = stringResource(R.string.stat_cold, s.coldCount) + avgText,
+                                        text =
+                                            stringResource(R.string.stat_cold, s.coldCount) +
+                                                avgText,
                                     )
                                 }
                                 if (s.serviceDeaths > 0) {
@@ -324,32 +310,6 @@ internal fun TileActivityCard(
                                 }
                             }
                         }
-
-                        Spacer(Modifier.height(Tokens.SpacingSm))
-
-                        filtered
-                            .asReversed()
-                            .forEachIndexed { index, event ->
-                                if (index > 0) {
-                                    HorizontalDivider(
-                                        color =
-                                            MaterialTheme.colorScheme.outlineVariant
-                                                .copy(alpha = 0.5f),
-                                    )
-                                }
-                                TileEventRow(
-                                    event = event,
-                                    expanded = expandedTimestamp == event.timestampMs,
-                                    onToggle = {
-                                        expandedTimestamp =
-                                            if (expandedTimestamp == event.timestampMs) {
-                                                null
-                                            } else {
-                                                event.timestampMs
-                                            }
-                                    },
-                                )
-                            }
                     }
                 }
             }
@@ -395,7 +355,8 @@ internal fun TileEventRow(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .clickable(onClick = onToggle),
+                .clickable(onClick = onToggle)
+                .padding(horizontal = Tokens.ScreenHorizontalPadding),
     ) {
         Row(
             modifier =
@@ -447,11 +408,17 @@ internal fun TileEventRow(
                 }
             val durationLabel =
                 when {
-                    event.durationMs == null -> null
-                    event.type == EventType.COLD_START ->
+                    event.durationMs == null -> {
+                        null
+                    }
+
+                    event.type == EventType.COLD_START -> {
                         stringResource(R.string.cold_start_latency, event.durationMs)
-                    else ->
+                    }
+
+                    else -> {
                         stringResource(R.string.latency, event.durationMs)
+                    }
                 }
             Column(
                 modifier =
@@ -516,38 +483,91 @@ internal fun EventBadge(type: EventType) {
 }
 
 @Composable
+private fun EventTypeChip(
+    type: EventType,
+    selected: Boolean,
+    onToggle: () -> Unit,
+) {
+    val style = eventBadgeStyle(type)
+    val textColor = if (selected) style.tintColor else Color.Unspecified
+    Surface(
+        onClick = onToggle,
+        shape = Tokens.ChipShape,
+        color =
+            if (selected) {
+                style.backgroundColor
+            } else {
+                Color.Transparent
+            },
+        border =
+            if (selected) {
+                null
+            } else {
+                BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+            },
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Icon(
+                painterResource(style.iconRes),
+                contentDescription = null,
+                modifier = Modifier.size(14.dp),
+                tint = style.tintColor,
+            )
+            Text(
+                type.name.replace('_', ' '),
+                style = MaterialTheme.typography.labelSmall,
+                color = textColor,
+            )
+        }
+    }
+}
+
+@Composable
 internal fun eventBadgeStyle(type: EventType): BadgeStyle =
     when (type) {
-        EventType.WARM ->
+        EventType.WARM -> {
             BadgeStyle(
                 R.drawable.ic_check_circle_24,
                 MaterialTheme.colorScheme.primaryContainer,
                 MaterialTheme.colorScheme.onPrimaryContainer,
             )
-        EventType.COLD_START ->
+        }
+
+        EventType.COLD_START -> {
             BadgeStyle(
                 R.drawable.ic_warning_24,
                 MaterialTheme.colorScheme.errorContainer,
                 MaterialTheme.colorScheme.onErrorContainer,
             )
-        EventType.MEM_PRESSURE ->
+        }
+
+        EventType.MEM_PRESSURE -> {
             BadgeStyle(
                 R.drawable.ic_block_24,
                 MaterialTheme.colorScheme.tertiaryContainer,
                 MaterialTheme.colorScheme.onTertiaryContainer,
             )
-        EventType.LIMIT_SET ->
+        }
+
+        EventType.LIMIT_SET -> {
             BadgeStyle(
                 R.drawable.ic_info_24,
                 MaterialTheme.colorScheme.surfaceVariant,
                 MaterialTheme.colorScheme.onSurfaceVariant,
             )
-        EventType.SERVICE_DIED ->
+        }
+
+        EventType.SERVICE_DIED -> {
             BadgeStyle(
                 R.drawable.ic_error_24,
                 MaterialTheme.colorScheme.errorContainer,
                 MaterialTheme.colorScheme.onErrorContainer,
             )
+        }
     }
 
 @Composable
