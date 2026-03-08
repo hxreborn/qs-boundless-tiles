@@ -8,7 +8,7 @@ Xposed module that raises the stock concurrent binding cap for third-party Quick
 
 ## Background
 
-When the QS panel opens, SystemUI [recalculates binding allowances](https://android.googlesource.com/platform/frameworks/base/+/d5a204f16e7c71ffdbc6c8307a4134dcc1efd60d/packages/SystemUI/src/com/android/systemui/qs/external/TileServices.java#37) and unbinds tiles beyond the cap. On many ROMs, unbound services may be frozen, so tapping them can trigger an unfreeze/rebind delay.
+Android limits third-party Quick Settings tiles to [3 concurrent bindings](https://android.googlesource.com/platform/frameworks/base/+/d5a204f16e7c71ffdbc6c8307a4134dcc1efd60d/packages/SystemUI/src/com/android/systemui/qs/external/TileServices.java#37) by default. When the QS panel opens, SystemUI recalculates allowances and unbinds tiles beyond the cap. On many ROMs, unbound services may be frozen, so tapping them can trigger an unfreeze/rebind delay.
 
 Tiles still [unbind ~30 seconds after the panel closes](https://android.googlesource.com/platform/frameworks/base/+/refs/heads/main/packages/SystemUI/src/com/android/systemui/qs/external/TileServiceManager.java#53).
 
