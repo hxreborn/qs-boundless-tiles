@@ -21,7 +21,7 @@ Hooks `SystemUI` to raise the binding cap so tiles stay bound while QS is open.
 - Android 13+ (API 33+)
 - LSPosed (API 100)
 - Scope: `com.android.systemui`
-- Root on Android 14+ for tile scanning and `Restart SystemUI`
+- Root for tile scanning and `Restart SystemUI`
 
 Tested on Pixel and LineageOS (Android 16). Other OEM ROMs may vary.
 
