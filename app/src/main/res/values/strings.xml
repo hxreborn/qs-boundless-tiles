@@ -23,7 +23,7 @@
     <string name="stat_warm">%d warm</string>
     <string name="stat_cold">%d cold</string>
     <string name="stat_died">%d died</string>
-    <string name="cold_start_latency">Cold-start latency: %1$dms</string>
+    <string name="cold_start_latency">Service bind latency: %1$dms</string>
 
     <!-- Tile providers -->
     <string name="tile_providers_title_count">Tile providers (%d)</string>
@@ -36,7 +36,7 @@
     <string name="clear_log_confirm_text">This will remove all recorded tile events.</string>
     <string name="event_system">System</string>
 <string name="search_tiles">Search tiles\u2026</string>
-    <string name="latency">Latency: %1$dms</string>
+    <string name="latency">IPC tap latency: %1$dms</string>
 
     <!-- Restart SystemUI -->
     <string name="restart_systemui">Restart SystemUI</string>

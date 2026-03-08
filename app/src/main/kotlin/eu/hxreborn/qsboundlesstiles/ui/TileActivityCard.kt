@@ -629,7 +629,7 @@ private fun DurationBadge(
                 .padding(horizontal = 6.dp, vertical = 2.dp),
     ) {
         Text(
-            if (isColdStart) "bind: ${ms}ms" else "${ms}ms",
+            "${ms}ms",
             style = MaterialTheme.typography.labelSmall,
             fontFamily = FontFamily.Monospace,
             color = contentColor,
