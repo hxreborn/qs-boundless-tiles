@@ -1,7 +1,6 @@
 package eu.hxreborn.qsboundlesstiles.hook
 
 import android.os.Build
-import eu.hxreborn.qsboundlesstiles.module
 import eu.hxreborn.qsboundlesstiles.prefs.Prefs
 import eu.hxreborn.qsboundlesstiles.prefs.PrefsManager
 import eu.hxreborn.qsboundlesstiles.ui.EventType
@@ -10,6 +9,7 @@ import eu.hxreborn.qsboundlesstiles.util.logDebug
 import io.github.libxposed.api.XposedInterface
 import io.github.libxposed.api.XposedInterface.AfterHookCallback
 import io.github.libxposed.api.XposedInterface.BeforeHookCallback
+import io.github.libxposed.api.XposedModule
 import io.github.libxposed.api.annotations.AfterInvocation
 import io.github.libxposed.api.annotations.BeforeInvocation
 import io.github.libxposed.api.annotations.XposedHooker
@@ -36,9 +36,13 @@ object TileServicesHook {
     private var recalculateMethod: Method? = null
 
     @Volatile
-    private var tileServicesInstance: Any? = null
+    var tileServicesInstance: Any? = null
+        internal set
 
-    fun hook(classLoader: ClassLoader) {
+    fun hook(
+        module: XposedModule,
+        classLoader: ClassLoader,
+    ) {
         log(
             "Hooking on ${Build.MANUFACTURER} ${Build.MODEL}, " +
                 "Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})",
@@ -92,7 +96,7 @@ object TileServicesHook {
                 hookStatus = hookStatus or HOOK_RECALCULATE_BIND_ALLOWANCE
             } ?: log("recalculateBindAllowance not found -- live binding updates unavailable")
 
-        hookStatus = hookStatus or TileActivityHook.hook(classLoader)
+        hookStatus = hookStatus or TileActivityHook.hook(module, classLoader)
 
         PrefsManager.setHookStatus(hookStatus)
 
@@ -108,26 +112,21 @@ object TileServicesHook {
         log("Hooked TileServices (status=0b${hookStatus.toString(2).padStart(6, '0')})")
     }
 
-    fun storeInstance(tileServices: Any) {
-        tileServicesInstance = tileServices
-    }
-
     fun extractContext(tileServices: Any) {
-        runCatching {
-            var cls: Class<*>? = tileServices.javaClass
-            while (cls != null) {
-                val field =
+        val context =
+            generateSequence<Class<*>>(tileServices.javaClass) { it.superclass }
+                .take(20)
+                .firstNotNullOfOrNull { cls ->
                     runCatching {
-                        cls!!.getDeclaredField("mContext").apply { isAccessible = true }
-                    }.getOrNull()
-                if (field != null) {
-                    (field.get(tileServices) as? android.content.Context)?.let {
-                        TileActivityHook.setContext(it)
-                        return
+                        cls.getDeclaredField("mContext").apply { isAccessible = true }
+                    }.getOrNull()?.let { field ->
+                        field.get(tileServices) as? android.content.Context
                     }
                 }
-                cls = cls!!.superclass
-            }
+
+        if (context != null) {
+            TileActivityHook.setContext(context)
+            return
         }
 
         runCatching {
@@ -165,7 +164,7 @@ class TileServicesConstructorHooker : XposedInterface.Hooker {
         @AfterInvocation
         fun after(callback: AfterHookCallback) {
             val tileServices = callback.thisObject ?: return
-            TileServicesHook.storeInstance(tileServices)
+            TileServicesHook.tileServicesInstance = tileServices
             TileServicesHook.extractContext(tileServices)
             TileServicesHook.applyUserMaxBound(tileServices)
             log("TileServices constructed, mMaxBound=${PrefsManager.maxBound}")

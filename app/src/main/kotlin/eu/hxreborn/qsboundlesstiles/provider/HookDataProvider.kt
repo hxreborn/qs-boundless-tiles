@@ -11,7 +11,7 @@ import androidx.core.content.edit
 
 class HookDataProvider : ContentProvider() {
     private val prefs: SharedPreferences by lazy {
-        context!!.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        requireContext().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     }
 
     override fun onCreate(): Boolean = true
