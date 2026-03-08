@@ -207,11 +207,7 @@ internal fun TileActivityCard(
                                     selected = type in activityState.selectedTypes,
                                     onToggle = {
                                         activityState.selectedTypes =
-                                            if (type in activityState.selectedTypes) {
-                                                activityState.selectedTypes - type
-                                            } else {
-                                                activityState.selectedTypes + type
-                                            }
+                                            activityState.selectedTypes.toggle(type)
                                     },
                                 )
                             }
@@ -228,11 +224,7 @@ internal fun TileActivityCard(
                                     Surface(
                                         onClick = {
                                             activityState.selectedTiles =
-                                                if (selected) {
-                                                    activityState.selectedTiles - tile
-                                                } else {
-                                                    activityState.selectedTiles + tile
-                                                }
+                                                activityState.selectedTiles.toggle(tile)
                                         },
                                         shape = Tokens.ChipShape,
                                         color =
@@ -493,12 +485,7 @@ private fun EventTypeChip(
     Surface(
         onClick = onToggle,
         shape = Tokens.ChipShape,
-        color =
-            if (selected) {
-                style.backgroundColor
-            } else {
-                Color.Transparent
-            },
+        color = if (selected) style.backgroundColor else Color.Transparent,
         border =
             if (selected) {
                 null
@@ -525,6 +512,8 @@ private fun EventTypeChip(
         }
     }
 }
+
+private fun <T> Set<T>.toggle(item: T): Set<T> = if (item in this) this - item else this + item
 
 @Composable
 internal fun eventBadgeStyle(type: EventType): BadgeStyle =

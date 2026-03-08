@@ -138,13 +138,11 @@ class HandleClickHooker : XposedInterface.Hooker {
                     mgr?.let { TileActivityHook.mBoundField?.getBoolean(it) } ?: false
                 }.getOrDefault(false)
 
-            return if (isBound) {
-                val label = TileActivityHook.resolveLabel(component)
-                ClickContext(System.nanoTime(), label)
-            } else {
+            if (!isBound) {
                 TileActivityHook.pendingClicks[component.flattenToString()] = System.nanoTime()
-                null
+                return null
             }
+            return ClickContext(System.nanoTime(), TileActivityHook.resolveLabel(component))
         }
 
         @JvmStatic
