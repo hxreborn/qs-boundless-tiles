@@ -49,23 +49,17 @@ object TileServicesHook {
         )
 
         val tileServicesClass =
-            runCatching {
-                classLoader.loadClass(TILE_SERVICES_CLASS)
-            }.onFailure {
-                log("TileServices class not found, aborting", it)
-            }.getOrNull() ?: run {
+            classLoader.loadOrNull(TILE_SERVICES_CLASS) ?: run {
+                log("TileServices class not found, aborting")
                 PrefsManager.setHookStatus(0)
                 return
             }
 
         maxBoundField =
-            runCatching {
-                tileServicesClass.getDeclaredField("mMaxBound").apply { isAccessible = true }
-            }.onFailure {
-                log("mMaxBound field not found, aborting", it)
-            }.getOrNull()
+            tileServicesClass.accessibleFieldOrNull("mMaxBound")
 
         if (maxBoundField == null) {
+            log("mMaxBound field not found, aborting")
             PrefsManager.setHookStatus(0)
             return
         }
@@ -117,15 +111,13 @@ object TileServicesHook {
             generateSequence<Class<*>>(tileServices.javaClass) { it.superclass }
                 .take(20)
                 .firstNotNullOfOrNull { cls ->
-                    runCatching {
-                        cls.getDeclaredField("mContext").apply { isAccessible = true }
-                    }.getOrNull()?.let { field ->
-                        field.get(tileServices) as? android.content.Context
-                    }
+                    cls
+                        .accessibleFieldOrNull("mContext")
+                        ?.get(tileServices) as? android.content.Context
                 }
 
-        if (context != null) {
-            TileActivityHook.setContext(context)
+        context?.let {
+            TileActivityHook.setContext(it)
             return
         }
 

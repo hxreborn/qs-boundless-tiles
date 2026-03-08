@@ -86,13 +86,15 @@ class MainActivity :
         remotePrefs = service.getRemotePreferences(Prefs.GROUP)
         viewModel.setXposedActive(true)
         refreshHookData()
-        runOnUiThread { syncPrefsToRemote() }
+        syncPrefsToRemote()
 
         if (hookDataListener == null) {
             val listener =
                 SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-                    if (key == HookDataProvider.KEY_TILE_EVENTS) refreshTileEvents()
-                    if (key == HookDataProvider.KEY_HOOK_STATUS) refreshHookStatus()
+                    when (key) {
+                        HookDataProvider.KEY_TILE_EVENTS -> refreshTileEvents()
+                        HookDataProvider.KEY_HOOK_STATUS -> refreshHookStatus()
+                    }
                 }
             hookDataListener = listener
             hookDataPrefs.registerOnSharedPreferenceChangeListener(listener)
@@ -130,12 +132,10 @@ class MainActivity :
     }
 
     private fun syncPrefsToRemote() {
-        val state = viewModel.uiState.value
-        if (state is DashboardUiState.Success) {
-            remotePrefs?.edit(commit = true) {
-                Prefs.maxBound.write(this, state.prefs.maxBound)
-                Prefs.debugLogs.write(this, state.prefs.debugLogs)
-            }
+        val state = viewModel.uiState.value as? DashboardUiState.Success ?: return
+        remotePrefs?.edit(commit = true) {
+            Prefs.maxBound.write(this, state.prefs.maxBound)
+            Prefs.debugLogs.write(this, state.prefs.debugLogs)
         }
     }
 
@@ -154,16 +154,13 @@ class MainActivity :
             val msg =
                 if (success) R.string.restart_systemui_success else R.string.restart_systemui_failed
             Toast.makeText(this@MainActivity, msg, Toast.LENGTH_SHORT).show()
-            if (success) {
-                val rebound = awaitSystemUiRebind()
-                if (!rebound) {
-                    Toast
-                        .makeText(
-                            this@MainActivity,
-                            R.string.systemui_still_restarting,
-                            Toast.LENGTH_SHORT,
-                        ).show()
-                }
+            if (success && !awaitSystemUiRebind()) {
+                Toast
+                    .makeText(
+                        this@MainActivity,
+                        R.string.systemui_still_restarting,
+                        Toast.LENGTH_SHORT,
+                    ).show()
             }
         }
     }

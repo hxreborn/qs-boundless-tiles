@@ -1,5 +1,6 @@
 package eu.hxreborn.qsboundlesstiles.hook
 
+import android.annotation.SuppressLint
 import android.content.ComponentName
 import android.content.Context
 import eu.hxreborn.qsboundlesstiles.prefs.PrefsManager
@@ -19,6 +20,7 @@ private const val CUSTOM_TILE_CLASS = "com.android.systemui.qs.external.CustomTi
 private const val TILE_LIFECYCLE_CLASS = "com.android.systemui.qs.external.TileLifecycleManager"
 private const val TILE_SERVICE_MANAGER_CLASS = "com.android.systemui.qs.external.TileServiceManager"
 
+@SuppressLint("StaticFieldLeak")
 object TileActivityHook {
     @Volatile
     var mComponentField: Field? = null
@@ -58,11 +60,7 @@ object TileActivityHook {
                         .getApplicationInfo(componentName.packageName, 0)
                         .loadLabel(pm)
                         .toString()
-                if (serviceLabel != appLabel) {
-                    "$serviceLabel ($appLabel)"
-                } else {
-                    appLabel
-                }
+                serviceLabel.takeIf { it != appLabel }?.let { "$it ($appLabel)" } ?: appLabel
             }.getOrDefault(componentName.shortClassName)
         }
 
@@ -72,42 +70,18 @@ object TileActivityHook {
     ): Int {
         var hookStatus = 0
 
-        val customTileClass =
-            runCatching {
-                classLoader.loadClass(CUSTOM_TILE_CLASS)
-            }.getOrNull()
-
-        val tileServiceManagerClass =
-            runCatching {
-                classLoader.loadClass(TILE_SERVICE_MANAGER_CLASS)
-            }.getOrNull()
-
-        val lifecycleClass =
-            runCatching {
-                classLoader.loadClass(TILE_LIFECYCLE_CLASS)
-            }.getOrNull()
+        val customTileClass = classLoader.loadOrNull(CUSTOM_TILE_CLASS)
+        val tileServiceManagerClass = classLoader.loadOrNull(TILE_SERVICE_MANAGER_CLASS)
+        val lifecycleClass = classLoader.loadOrNull(TILE_LIFECYCLE_CLASS)
 
         if (customTileClass == null) {
             log("CustomTile class not found, tile activity tracking unavailable")
             return 0
         }
 
-        mComponentField =
-            runCatching {
-                customTileClass.getDeclaredField("mComponent").apply { isAccessible = true }
-            }.getOrNull()
-
-        mServiceManagerField =
-            runCatching {
-                customTileClass.getDeclaredField("mServiceManager").apply { isAccessible = true }
-            }.getOrNull()
-
-        mBoundField =
-            tileServiceManagerClass?.let { cls ->
-                runCatching {
-                    cls.getDeclaredField("mBound").apply { isAccessible = true }
-                }.getOrNull()
-            }
+        mComponentField = customTileClass.accessibleFieldOrNull("mComponent")
+        mServiceManagerField = customTileClass.accessibleFieldOrNull("mServiceManager")
+        mBoundField = tileServiceManagerClass?.accessibleFieldOrNull("mBound")
 
         customTileClass.declaredMethods
             .find { it.name == "handleClick" }

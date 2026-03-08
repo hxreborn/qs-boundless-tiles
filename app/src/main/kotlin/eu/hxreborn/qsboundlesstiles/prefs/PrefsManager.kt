@@ -47,15 +47,7 @@ object PrefsManager {
     }
 
     fun flushHookStatus() {
-        val context = TileActivityHook.systemUiContext ?: return
-        runCatching {
-            context.contentResolver.call(
-                HookDataProvider.CONTENT_URI,
-                HookDataProvider.METHOD_WRITE_HOOK_STATUS,
-                hookStatus.toString(),
-                null,
-            )
-        }.onFailure { log("Failed to flush hook status", it) }
+        callProvider(HookDataProvider.METHOD_WRITE_HOOK_STATUS, hookStatus.toString())
     }
 
     fun recordTileEvent(
@@ -64,7 +56,6 @@ object PrefsManager {
         durationMs: Long?,
         detail: String?,
     ) {
-        val context = TileActivityHook.systemUiContext ?: return
         val entry =
             listOf(
                 System.currentTimeMillis().toString(),
@@ -73,14 +64,17 @@ object PrefsManager {
                 durationMs?.toString() ?: "",
                 detail ?: "",
             ).joinToString("|")
+        callProvider(HookDataProvider.METHOD_RECORD_TILE_EVENT, entry)
+    }
+
+    private fun callProvider(
+        method: String,
+        arg: String?,
+    ) {
+        val context = TileActivityHook.systemUiContext ?: return
         runCatching {
-            context.contentResolver.call(
-                HookDataProvider.CONTENT_URI,
-                HookDataProvider.METHOD_RECORD_TILE_EVENT,
-                entry,
-                null,
-            )
-        }.onFailure { log("Failed to record tile event", it) }
+            context.contentResolver.call(HookDataProvider.CONTENT_URI, method, arg, null)
+        }.onFailure { log("Provider call '$method' failed", it) }
     }
 
     private fun refreshCache() {

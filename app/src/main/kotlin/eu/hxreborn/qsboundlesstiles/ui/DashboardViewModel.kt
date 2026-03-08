@@ -100,19 +100,16 @@ class DashboardViewModelImpl(
                 .filter { it.isNotBlank() }
                 .mapNotNull { line ->
                     val parts = line.split("|", limit = 5)
-                    if (parts.size >= 2) {
-                        TileEvent(
-                            timestampMs = parts[0].toLongOrNull() ?: return@mapNotNull null,
-                            type =
-                                runCatching { EventType.valueOf(parts[1]) }.getOrNull()
-                                    ?: return@mapNotNull null,
-                            tileName = parts.getOrNull(2)?.takeIf { it.isNotBlank() },
-                            durationMs = parts.getOrNull(3)?.toLongOrNull(),
-                            detail = parts.getOrNull(4)?.takeIf { it.isNotBlank() },
-                        )
-                    } else {
-                        null
-                    }
+                    if (parts.size < 2) return@mapNotNull null
+                    TileEvent(
+                        timestampMs = parts[0].toLongOrNull() ?: return@mapNotNull null,
+                        type =
+                            EventType.entries.find { it.name == parts[1] }
+                                ?: return@mapNotNull null,
+                        tileName = parts.getOrNull(2)?.takeIf { it.isNotBlank() },
+                        durationMs = parts.getOrNull(3)?.toLongOrNull(),
+                        detail = parts.getOrNull(4)?.takeIf { it.isNotBlank() },
+                    )
                 }
     }
 }
