@@ -18,13 +18,8 @@ object Logger {
         msg: String,
         t: Throwable? = null,
     ) {
-        if (t == null) {
-            module?.log(msg)
-            Log.d(TAG, msg)
-        } else {
-            module?.log(msg, t)
-            Log.e(TAG, msg, t)
-        }
+        module?.apply { if (t != null) log(msg, t) else log(msg) }
+        if (t != null) Log.e(TAG, msg, t) else Log.d(TAG, msg)
     }
 
     inline fun logDebug(msg: () -> String) {
@@ -36,6 +31,6 @@ object Logger {
 fun log(
     msg: String,
     t: Throwable? = null,
-): Unit = Logger.log(msg, t)
+) = Logger.log(msg, t)
 
-inline fun logDebug(msg: () -> String): Unit = Logger.logDebug(msg)
+inline fun logDebug(msg: () -> String) = Logger.logDebug(msg)

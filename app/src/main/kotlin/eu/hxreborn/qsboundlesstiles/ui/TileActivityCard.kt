@@ -99,17 +99,17 @@ internal fun TileActivityCard(
                 null
             } else {
                 val warmCount = events.count { it.type == EventType.WARM }
-                val coldStarts = events.filter { it.type == EventType.COLD_START }
-                val coldCount = coldStarts.size
-                val tapCount = warmCount + coldCount
-                val avgColdMs =
-                    if (coldStarts.isNotEmpty()) {
-                        coldStarts.mapNotNull { it.durationMs }.average().toLong()
-                    } else {
-                        null
-                    }
-                val serviceDeaths = events.count { it.type == EventType.SERVICE_DIED }
-                EventStats(warmCount, coldCount, tapCount, avgColdMs, serviceDeaths)
+                val coldDurations =
+                    events
+                        .filter { it.type == EventType.COLD_START }
+                        .mapNotNull { it.durationMs }
+                EventStats(
+                    warmCount = warmCount,
+                    coldCount = coldDurations.size,
+                    tapCount = warmCount + coldDurations.size,
+                    avgColdMs = coldDurations.takeIf { it.isNotEmpty() }?.average()?.toLong(),
+                    serviceDeaths = events.count { it.type == EventType.SERVICE_DIED },
+                )
             }
         }
 
@@ -337,10 +337,9 @@ internal fun TileEventRow(
     onToggle: () -> Unit,
 ) {
     val context = LocalContext.current
-    val timeFormat = remember { DateFormat.getTimeFormat(context) }
     val time =
         remember(event.timestampMs) {
-            timeFormat.format(Date(event.timestampMs))
+            DateFormat.getTimeFormat(context).format(Date(event.timestampMs))
         }
 
     Column(
@@ -387,29 +386,20 @@ internal fun TileEventRow(
 
         AnimatedVisibility(visible = expanded) {
             val style = eventBadgeStyle(event.type)
-            val fullTimestamp =
+            val (fullTimestamp, relativeTime) =
                 remember(event.timestampMs) {
-                    SimpleDateFormat(
-                        "yyyy-MM-dd HH:mm:ss.SSS",
-                        Locale.US,
-                    ).format(Date(event.timestampMs))
-                }
-            val relativeTime =
-                remember(event.timestampMs) {
-                    formatRelativeTime(event.timestampMs)
+                    val date = Date(event.timestampMs)
+                    SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US).format(date) to
+                        formatRelativeTime(event.timestampMs)
                 }
             val durationLabel =
-                when {
-                    event.durationMs == null -> {
-                        null
-                    }
-
-                    event.type == EventType.COLD_START -> {
-                        stringResource(R.string.cold_start_latency, event.durationMs)
-                    }
-
-                    else -> {
-                        stringResource(R.string.latency, event.durationMs)
+                event.durationMs?.let { ms ->
+                    if (event.type ==
+                        EventType.COLD_START
+                    ) {
+                        stringResource(R.string.cold_start_latency, ms)
+                    } else {
+                        stringResource(R.string.latency, ms)
                     }
                 }
             Column(

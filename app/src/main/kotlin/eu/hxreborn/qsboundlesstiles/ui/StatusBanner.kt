@@ -39,24 +39,35 @@ internal fun StatusBanner(
     modifier: Modifier = Modifier,
 ) {
     val level = statusLevel(state)
-    val containerColor =
+    val (iconRes, containerColor, contentColor) =
         when (level) {
-            StatusLevel.SUCCESS -> MaterialTheme.colorScheme.primaryContainer
-            StatusLevel.WARNING -> MaterialTheme.colorScheme.tertiaryContainer
-            StatusLevel.ERROR -> MaterialTheme.colorScheme.errorContainer
+            StatusLevel.SUCCESS -> {
+                Triple(
+                    R.drawable.ic_check_circle_24,
+                    MaterialTheme.colorScheme.primaryContainer,
+                    MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+            }
+
+            StatusLevel.WARNING -> {
+                Triple(
+                    R.drawable.ic_info_24,
+                    MaterialTheme.colorScheme.tertiaryContainer,
+                    MaterialTheme.colorScheme.onTertiaryContainer,
+                )
+            }
+
+            StatusLevel.ERROR -> {
+                Triple(
+                    R.drawable.ic_warning_24,
+                    MaterialTheme.colorScheme.errorContainer,
+                    MaterialTheme.colorScheme.onErrorContainer,
+                )
+            }
         }
-    val contentColor =
-        when (level) {
-            StatusLevel.SUCCESS -> MaterialTheme.colorScheme.onPrimaryContainer
-            StatusLevel.WARNING -> MaterialTheme.colorScheme.onTertiaryContainer
-            StatusLevel.ERROR -> MaterialTheme.colorScheme.onErrorContainer
-        }
-    val iconRes =
-        when (level) {
-            StatusLevel.SUCCESS -> R.drawable.ic_check_circle_24
-            StatusLevel.WARNING -> R.drawable.ic_info_24
-            StatusLevel.ERROR -> R.drawable.ic_warning_24
-        }
+
+    val isActive = state?.xposedActive ?: false
+    val isFullyHooked = (state?.hookStatus ?: 0) and TileServicesHook.HOOK_CONSTRUCTOR != 0
 
     Surface(
         modifier = modifier.fillMaxWidth(),
@@ -76,12 +87,12 @@ internal fun StatusBanner(
             Spacer(Modifier.width(Tokens.SpacingLg))
             Column {
                 Text(
-                    text = statusTitle(state),
+                    text = statusTitle(isActive, isFullyHooked, state?.hasRoot ?: false),
                     style = MaterialTheme.typography.titleMedium,
                     color = contentColor,
                 )
                 Text(
-                    text = statusSubtitle(state),
+                    text = statusSubtitle(state, isActive, isFullyHooked),
                     style = MaterialTheme.typography.bodyMedium,
                     color = contentColor.copy(alpha = 0.8f),
                 )
@@ -91,24 +102,25 @@ internal fun StatusBanner(
 }
 
 @Composable
-internal fun statusTitle(state: DashboardUiState.Success?): String {
-    val isActive = state?.xposedActive ?: false
-    val isFullyHooked =
-        (state?.hookStatus ?: 0) and TileServicesHook.HOOK_CONSTRUCTOR != 0
-    return when {
+internal fun statusTitle(
+    isActive: Boolean,
+    isFullyHooked: Boolean,
+    hasRoot: Boolean,
+): String =
+    when {
         !isActive -> stringResource(R.string.module_inactive)
         !isFullyHooked -> stringResource(R.string.module_partially_active)
-        !state.hasRoot -> stringResource(R.string.module_no_root_title)
+        !hasRoot -> stringResource(R.string.module_no_root_title)
         else -> stringResource(R.string.module_active)
     }
-}
 
 @Composable
-internal fun statusSubtitle(state: DashboardUiState.Success?): String {
-    val isActive = state?.xposedActive ?: false
-    val isFullyHooked =
-        (state?.hookStatus ?: 0) and TileServicesHook.HOOK_CONSTRUCTOR != 0
-    return when {
+internal fun statusSubtitle(
+    state: DashboardUiState.Success?,
+    isActive: Boolean,
+    isFullyHooked: Boolean,
+): String =
+    when {
         state == null || !isActive -> {
             stringResource(R.string.module_inactive_subtitle)
         }
@@ -133,4 +145,3 @@ internal fun statusSubtitle(state: DashboardUiState.Success?): String {
             stringResource(R.string.status_all_bound, state.activeQsCount)
         }
     }
-}

@@ -35,7 +35,10 @@ object TileScanner {
     private fun queryThirdPartyServices(context: Context): List<ResolveInfo> =
         context.packageManager
             .queryIntentServices(Intent(TileService.ACTION_QS_TILE), PackageManager.MATCH_ALL)
-            .filter { it.serviceInfo?.packageName?.let { pkg -> !isSystemPackage(pkg) } ?: false }
+            .filter { info ->
+                val pkg = info.serviceInfo?.packageName ?: return@filter false
+                !isSystemPackage(pkg)
+            }
 
     private fun isSystemPackage(packageName: String): Boolean =
         SYSTEM_PREFIXES.any { packageName.startsWith(it) }
