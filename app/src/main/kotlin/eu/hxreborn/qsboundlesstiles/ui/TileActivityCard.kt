@@ -159,7 +159,14 @@ internal fun TileActivityCard(
 
             AnimatedVisibility(visible = activityState.expanded) {
                 Column {
-                    if (events.isNotEmpty()) {
+                    if (events.isEmpty()) {
+                        Text(
+                            stringResource(R.string.no_events),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = Tokens.SpacingSm),
+                        )
+                    } else {
                         Spacer(Modifier.height(Tokens.SpacingSm))
 
                         var dropdownExpanded by remember { mutableStateOf(false) }
@@ -242,7 +249,9 @@ internal fun TileActivityCard(
                                                 )
                                             },
                                             onClick = {
-                                                activityState.searchQuery = tile
+                                                activityState.selectedTiles =
+                                                    activityState.selectedTiles + tile
+                                                activityState.searchQuery = ""
                                                 dropdownExpanded = false
                                             },
                                         )
