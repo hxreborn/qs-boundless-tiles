@@ -24,8 +24,8 @@ android {
         applicationId = "eu.hxreborn.qsboundlesstiles"
         minSdk = 33
         targetSdk = 36
-        versionCode = 161
-        versionName = "1.6.1-rc1"
+        versionCode = 200
+        versionName = "2.0.0"
         buildConfigField("String", "SYSTEMUI_PACKAGE", "\"${xposedScopePackage.get()}\"")
     }
 
