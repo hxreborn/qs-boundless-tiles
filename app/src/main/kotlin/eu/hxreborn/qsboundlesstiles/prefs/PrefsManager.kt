@@ -25,19 +25,26 @@ object PrefsManager {
     @Volatile
     var onMaxBoundChanged: ((Int) -> Unit)? = null
 
+    // Strong reference prevents GC (RemotePreferences uses WeakHashMap for listeners)
+    private var prefChangeListener: android.content.SharedPreferences.OnSharedPreferenceChangeListener? =
+        null
+
     fun init(xposed: XposedInterface) {
         runCatching {
             remotePrefs = xposed.getRemotePreferences(Prefs.GROUP)
             refreshCache()
-            remotePrefs?.registerOnSharedPreferenceChangeListener { _, key ->
-                runCatching {
-                    val oldMaxBound = maxBound
-                    refreshCache()
-                    if (key == Prefs.maxBound.key && maxBound != oldMaxBound) {
-                        onMaxBoundChanged?.invoke(maxBound)
-                    }
-                }.onFailure { log("Preference change handler failed", it) }
-            }
+            val listener =
+                android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+                    runCatching {
+                        val oldMaxBound = maxBound
+                        refreshCache()
+                        if (key == Prefs.maxBound.key && maxBound != oldMaxBound) {
+                            onMaxBoundChanged?.invoke(maxBound)
+                        }
+                    }.onFailure { log("Preference change handler failed", it) }
+                }
+            prefChangeListener = listener
+            remotePrefs?.registerOnSharedPreferenceChangeListener(listener)
             log("PrefsManager initialized")
         }.onFailure { log("PrefsManager.init() failed", it) }
     }
