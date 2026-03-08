@@ -1,16 +1,16 @@
 # QS Boundless Tiles
 
-LSPosed module that raises the stock concurrent binding cap for third-party Quick Settings tiles on Android 13+.
-
 ![Android CI](https://github.com/hxreborn/qs-boundless-tiles/actions/workflows/android-ci.yml/badge.svg)
 ![Kotlin](https://img.shields.io/badge/Kotlin-2.1.21-7F52FF?style=flat&logo=kotlin&logoColor=white)
 ![Android](https://img.shields.io/badge/API-33%2B-3DDC84?logo=android&logoColor=white)
 
+Xposed module that raises the stock concurrent binding cap for third-party Quick Settings tiles on Android 13+.
+
 ## Background
 
-Android limits third-party Quick Settings tiles to [3 concurrent bindings](https://android.googlesource.com/platform/frameworks/base/+/d5a204f16e7c71ffdbc6c8307a4134dcc1efd60d/packages/SystemUI/src/com/android/systemui/qs/external/TileServices.java#37) by default (`TileServices.mMaxBound = 3`).
-When the panel opens, SystemUI recalculates allowances and unbinds the rest. On many ROMs, unbound services may be frozen, so tapping them can trigger an unfreeze/rebind delay.
-Tiles still [unbind ~30 seconds after the panel closes](https://android.googlesource.com/platform/frameworks/base/+/refs/heads/main/packages/SystemUI/src/com/android/systemui/qs/external/TileServiceManager.java#73).
+When the QS panel opens, SystemUI [recalculates binding allowances](https://android.googlesource.com/platform/frameworks/base/+/d5a204f16e7c71ffdbc6c8307a4134dcc1efd60d/packages/SystemUI/src/com/android/systemui/qs/external/TileServices.java#37) and unbinds tiles beyond the cap. On many ROMs, unbound services may be frozen, so tapping them can trigger an unfreeze/rebind delay.
+
+Tiles still [unbind ~30 seconds after the panel closes](https://android.googlesource.com/platform/frameworks/base/+/refs/heads/main/packages/SystemUI/src/com/android/systemui/qs/external/TileServiceManager.java#53).
 
 ## How it works
 
@@ -27,9 +27,9 @@ Tested on Pixel and LineageOS (Android 16). Other OEM ROMs may vary.
 
 ## System Overhead
 
-- RAM: Raising the concurrent binding limit keeps more tile services bound while QS is open, so memory use can increase with tile count and provider behavior. After QS is closed and SystemUI unbinds services (~30s), memory behavior is effectively the same as stock.
-- Battery: The module does not schedule periodic work, hold wakelocks, or use network. Event logging uses a lightweight synchronous binder call with no background overhead.
-- Stability: The hook prevents memory-pressure downscaling of `mMaxBound`, so aggressive settings can worsen jank or process churn on low-RAM devices.
+- **RAM:** More tiles stay bound while QS is open, so memory use scales with tile count. Once the panel closes and services unbind (~30s), memory returns to stock levels.
+- **Battery:** No periodic work, wakelocks, or network. Event logging is a synchronous binder call with no background cost.
+- **Stability:** The hook blocks memory-pressure downscaling of the binding limit. Aggressive settings on low-RAM devices may increase jank or OOM kills.
 
 If you encounter issues, please [file an issue on GitHub](https://github.com/hxreborn/qs-boundless-tiles/issues/new/choose).
 
