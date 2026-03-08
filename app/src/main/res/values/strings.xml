@@ -7,7 +7,7 @@
     <string name="module_active">Module active</string>
     <string name="module_partially_active">Hooks partially active</string>
     <string name="module_inactive">Hooks not loaded</string>
-    <string name="module_partial_subtitle">Some hooks unavailable on this Android version</string>
+    <string name="module_partial_subtitle">Try restarting SystemUI. If it persists, some hooks may be unsupported on this Android version.</string>
     <string name="module_inactive_subtitle">Enable in LSPosed + add SystemUI scope, then reboot</string>
     <string name="module_no_root_title">Limited info</string>
     <string name="module_no_root_subtitle">Root needed to count tiles and restart SystemUI</string>
