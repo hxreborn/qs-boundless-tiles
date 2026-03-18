@@ -189,7 +189,9 @@ fun DashboardScreen(
                                     expanded = activityState.expandedTimestamp == event.timestampMs,
                                     onToggle = {
                                         activityState.expandedTimestamp =
-                                            if (activityState.expandedTimestamp == event.timestampMs) {
+                                            if (activityState.expandedTimestamp ==
+                                                event.timestampMs
+                                            ) {
                                                 null
                                             } else {
                                                 event.timestampMs

@@ -26,7 +26,8 @@ object PrefsManager {
     var onMaxBoundChanged: ((Int) -> Unit)? = null
 
     // Strong reference prevents GC (RemotePreferences uses WeakHashMap for listeners)
-    private var prefChangeListener: android.content.SharedPreferences.OnSharedPreferenceChangeListener? =
+    private var prefChangeListener:
+        android.content.SharedPreferences.OnSharedPreferenceChangeListener? =
         null
 
     fun init(xposed: XposedInterface) {
