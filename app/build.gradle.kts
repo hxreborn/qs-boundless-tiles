@@ -1,8 +1,6 @@
 plugins {
     alias(libs.plugins.agp.app)
-    alias(libs.plugins.kotlin)
     alias(libs.plugins.kotlin.compose)
-    alias(libs.plugins.ktlint)
 }
 
 val xposedScopePackage: Provider<String> =
@@ -24,8 +22,8 @@ android {
         applicationId = "eu.hxreborn.qsboundlesstiles"
         minSdk = 33
         targetSdk = 36
-        versionCode = 200
-        versionName = "2.0.0"
+        versionCode = 300
+        versionName = "3.0.0"
         buildConfigField("String", "SYSTEMUI_PACKAGE", "\"${xposedScopePackage.get()}\"")
     }
 
@@ -102,12 +100,6 @@ kotlin {
     jvmToolchain(21)
 }
 
-ktlint {
-    version.set("1.8.0")
-    android.set(true)
-    ignoreFailures.set(false)
-}
-
 dependencies {
     compileOnly(libs.libxposed.api)
     implementation(libs.libxposed.service)
@@ -122,4 +114,24 @@ dependencies {
     implementation(libs.compose.ui.tooling.preview)
     implementation(libs.activity.compose)
     debugImplementation(libs.compose.ui.tooling)
+}
+
+val ktlintCheck by tasks.registering(JavaExec::class) {
+    group = "verification"
+    description = "Check Kotlin code style"
+    mainClass.set("com.pinterest.ktlint.Main")
+    classpath = configurations.detachedConfiguration(
+        dependencies.create("com.pinterest.ktlint:ktlint-cli:1.8.0"),
+    )
+    args("src/**/*.kt")
+}
+
+val ktlintFormat by tasks.registering(JavaExec::class) {
+    group = "verification"
+    description = "Auto-fix Kotlin code style"
+    mainClass.set("com.pinterest.ktlint.Main")
+    classpath = configurations.detachedConfiguration(
+        dependencies.create("com.pinterest.ktlint:ktlint-cli:1.8.0"),
+    )
+    args("-F", "src/**/*.kt")
 }

@@ -1,8 +1,9 @@
 # QS Boundless Tiles
 
 ![Android CI](https://github.com/hxreborn/qs-boundless-tiles/actions/workflows/android-ci.yml/badge.svg)
-![Kotlin](https://img.shields.io/badge/Kotlin-2.1.21-7F52FF?style=flat&logo=kotlin&logoColor=white)
+![Kotlin](https://img.shields.io/badge/Kotlin-2.3.10-7F52FF?style=flat&logo=kotlin&logoColor=white)
 ![Android](https://img.shields.io/badge/API-33%2B-3DDC84?logo=android&logoColor=white)
+![Xposed Repo](https://img.shields.io/github/downloads/Xposed-Modules-Repo/eu.hxreborn.qsboundlesstiles/total?label=Xposed%20Repo&logo=android&logoColor=white)
 
 Xposed module that raises the stock concurrent binding cap for third-party Quick Settings tiles on Android 13+.
 
@@ -19,7 +20,7 @@ Hooks `SystemUI` to raise the binding cap so tiles stay bound while QS is open.
 ## Requirements
 
 - Android 13+ (API 33+)
-- LSPosed (API 100)
+- LSPosed (API 101)
 - Scope: `com.android.systemui`
 - Root for tile scanning and `Restart SystemUI`
 
@@ -48,9 +49,8 @@ If you encounter issues, please [file an issue on GitHub](https://github.com/hxr
 ## Build
 
 ```bash
-git clone --recurse-submodules https://github.com/hxreborn/qs-boundless-tiles.git
+git clone https://github.com/hxreborn/qs-boundless-tiles.git
 cd qs-boundless-tiles
-./gradlew buildLibxposed
 ./gradlew assembleRelease
 ```
 

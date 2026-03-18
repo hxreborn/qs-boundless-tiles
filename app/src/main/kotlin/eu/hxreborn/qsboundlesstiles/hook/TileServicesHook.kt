@@ -7,12 +7,6 @@ import eu.hxreborn.qsboundlesstiles.ui.EventType
 import eu.hxreborn.qsboundlesstiles.util.log
 import eu.hxreborn.qsboundlesstiles.util.logDebug
 import io.github.libxposed.api.XposedInterface
-import io.github.libxposed.api.XposedInterface.AfterHookCallback
-import io.github.libxposed.api.XposedInterface.BeforeHookCallback
-import io.github.libxposed.api.XposedModule
-import io.github.libxposed.api.annotations.AfterInvocation
-import io.github.libxposed.api.annotations.BeforeInvocation
-import io.github.libxposed.api.annotations.XposedHooker
 import java.lang.reflect.Field
 import java.lang.reflect.Method
 
@@ -27,22 +21,17 @@ object TileServicesHook {
     const val HOOK_SERVICE_DIED = 32
     const val HOOK_ALL =
         HOOK_CONSTRUCTOR or HOOK_SET_MEMORY_PRESSURE or HOOK_RECALCULATE_BIND_ALLOWANCE or
-            HOOK_HANDLE_CLICK or
-            HOOK_ON_SERVICE_CONNECTED or
-            HOOK_SERVICE_DIED
+            HOOK_HANDLE_CLICK or HOOK_ON_SERVICE_CONNECTED or HOOK_SERVICE_DIED
 
-    @Volatile
-    private var maxBoundField: Field? = null
+    @Volatile private var maxBoundField: Field? = null
 
-    @Volatile
-    private var recalculateMethod: Method? = null
+    @Volatile private var recalculateMethod: Method? = null
 
-    @Volatile
-    var tileServicesInstance: Any? = null
+    @Volatile var tileServicesInstance: Any? = null
         internal set
 
     fun hook(
-        module: XposedModule,
+        module: XposedInterface,
         classLoader: ClassLoader,
     ) {
         log("Hooking TileServices on API ${Build.VERSION.SDK_INT}")
@@ -55,7 +44,6 @@ object TileServicesHook {
             }
 
         maxBoundField = tileServicesClass.accessibleFieldOrNull("mMaxBound")
-
         if (maxBoundField == null) {
             log("mMaxBound field not found, aborting")
             PrefsManager.setHookStatus(0)
@@ -65,24 +53,64 @@ object TileServicesHook {
         var hookStatus = 0
 
         tileServicesClass.declaredConstructors.forEach { constructor ->
-            module.hook(constructor, TileServicesConstructorHooker::class.java)
+            module.hook(constructor).intercept { chain ->
+                val result = chain.proceed()
+                val ts = chain.thisObject ?: return@intercept result
+                tileServicesInstance = ts
+                extractContext(ts)
+                applyUserMaxBound(ts)
+                log("TileServices constructed, mMaxBound=${PrefsManager.maxBound}")
+                PrefsManager.flushHookStatus()
+                PrefsManager.recordTileEvent(
+                    EventType.LIMIT_SET,
+                    null,
+                    null,
+                    "mMaxBound=${PrefsManager.maxBound}",
+                )
+                result
+            }
         }
         hookStatus = hookStatus or HOOK_CONSTRUCTOR
 
         tileServicesClass.declaredMethods
-            .find {
-                it.name == "setMemoryPressure" && it.parameterCount == 1
-            }?.let {
-                module.hook(it, SetMemoryPressureHooker::class.java)
+            .find { it.name == "setMemoryPressure" && it.parameterCount == 1 }
+            ?.let { method ->
+                module.hook(method).intercept { chain ->
+                    val result = chain.proceed()
+                    val ts = chain.thisObject ?: return@intercept result
+                    applyUserMaxBound(ts)
+                    val memPressure = chain.args[0] as? Boolean ?: return@intercept result
+                    logDebug {
+                        "setMemoryPressure($memPressure): " +
+                            "restored mMaxBound=${PrefsManager.maxBound}"
+                    }
+                    if (memPressure) {
+                        PrefsManager.recordTileEvent(
+                            EventType.MEM_PRESSURE,
+                            null,
+                            null,
+                            "Memory pressure intercepted, limit preserved at " +
+                                "${PrefsManager.maxBound}",
+                        )
+                    }
+                    result
+                }
                 hookStatus = hookStatus or HOOK_SET_MEMORY_PRESSURE
             } ?: log("setMemoryPressure not found (removed in Android 15+, not needed)")
 
         tileServicesClass.declaredMethods
-            .find {
-                it.name == "recalculateBindAllowance" && it.parameterCount == 0
-            }?.also { recalculateMethod = it.apply { isAccessible = true } }
-            ?.let {
-                module.hook(it, RecalculateBindAllowanceHooker::class.java)
+            .find { it.name == "recalculateBindAllowance" && it.parameterCount == 0 }
+            ?.also { recalculateMethod = it.apply { isAccessible = true } }
+            ?.let { method ->
+                module.hook(method).intercept { chain ->
+                    chain.thisObject?.let { ts ->
+                        applyUserMaxBound(ts)
+                        logDebug {
+                            "recalculateBindAllowance: set mMaxBound=${PrefsManager.maxBound}"
+                        }
+                    }
+                    chain.proceed()
+                }
                 hookStatus = hookStatus or HOOK_RECALCULATE_BIND_ALLOWANCE
             } ?: log("recalculateBindAllowance not found -- live binding updates unavailable")
 
@@ -95,7 +123,12 @@ object TileServicesHook {
                 setMaxBound(instance, newValue)
                 runCatching { recalculateMethod?.invoke(instance) }
                 log("Live updated mMaxBound=$newValue")
-                PrefsManager.recordTileEvent(EventType.LIMIT_SET, null, null, "mMaxBound=$newValue")
+                PrefsManager.recordTileEvent(
+                    EventType.LIMIT_SET,
+                    null,
+                    null,
+                    "mMaxBound=$newValue",
+                )
             }
         }
 
@@ -108,9 +141,8 @@ object TileServicesHook {
                 .take(20)
                 .firstNotNullOfOrNull { cls ->
                     cls
-                        .accessibleFieldOrNull(
-                            "mContext",
-                        )?.get(tileServices) as? android.content.Context
+                        .accessibleFieldOrNull("mContext")
+                        ?.get(tileServices) as? android.content.Context
                 }
 
         context?.let {
@@ -125,9 +157,7 @@ object TileServicesHook {
                     .getMethod("currentApplication")
                     .invoke(null) as? android.content.Context
             app?.let { TileActivityHook.setContext(it) }
-        }.onFailure {
-            log("Failed to extract SystemUI context", it)
-        }
+        }.onFailure { log("Failed to extract SystemUI context", it) }
     }
 
     fun setMaxBound(
@@ -136,80 +166,11 @@ object TileServicesHook {
     ) {
         runCatching {
             maxBoundField?.setInt(tileServices, value)
-        }.onFailure {
-            log("Failed to set mMaxBound", it)
-        }
+        }.onFailure { log("Failed to set mMaxBound", it) }
     }
 
     fun applyUserMaxBound(tileServices: Any) {
         val newMax = PrefsManager.maxBound.coerceAtLeast(Prefs.maxBound.default)
         setMaxBound(tileServices, newMax)
-    }
-}
-
-@XposedHooker
-class TileServicesConstructorHooker : XposedInterface.Hooker {
-    companion object {
-        @JvmStatic
-        @AfterInvocation
-        fun after(callback: AfterHookCallback) {
-            val tileServices = callback.thisObject ?: return
-            TileServicesHook.tileServicesInstance = tileServices
-            TileServicesHook.extractContext(tileServices)
-            TileServicesHook.applyUserMaxBound(tileServices)
-            log("TileServices constructed, mMaxBound=${PrefsManager.maxBound}")
-            PrefsManager.flushHookStatus()
-            PrefsManager.recordTileEvent(
-                EventType.LIMIT_SET,
-                null,
-                null,
-                "mMaxBound=${PrefsManager.maxBound}",
-            )
-        }
-    }
-}
-
-@XposedHooker
-class SetMemoryPressureHooker : XposedInterface.Hooker {
-    companion object {
-        @JvmStatic
-        @AfterInvocation
-        fun after(callback: AfterHookCallback) {
-            callback.thisObject?.let {
-                TileServicesHook.applyUserMaxBound(it)
-                val memoryPressure = callback.args?.getOrNull(0) as? Boolean ?: return
-                logDebug {
-                    "setMemoryPressure($memoryPressure): restored mMaxBound=${PrefsManager.maxBound}"
-                }
-                if (memoryPressure) {
-                    PrefsManager.recordTileEvent(
-                        EventType.MEM_PRESSURE,
-                        null,
-                        null,
-                        "Memory pressure intercepted, limit preserved at ${PrefsManager.maxBound}",
-                    )
-                }
-            }
-        }
-    }
-}
-
-@XposedHooker
-class RecalculateBindAllowanceHooker : XposedInterface.Hooker {
-    companion object {
-        @JvmStatic
-        @BeforeInvocation
-        fun before(callback: BeforeHookCallback) {
-            callback.thisObject?.let {
-                TileServicesHook.applyUserMaxBound(it)
-                logDebug { "recalculateBindAllowance: set mMaxBound=${PrefsManager.maxBound}" }
-            }
-        }
-
-        @JvmStatic
-        @AfterInvocation
-        fun after(
-            @Suppress("UNUSED_PARAMETER") callback: AfterHookCallback,
-        ) = Unit
     }
 }

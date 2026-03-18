@@ -18,8 +18,13 @@ object Logger {
         msg: String,
         t: Throwable? = null,
     ) {
-        module?.apply { if (t != null) log(msg, t) else log(msg) }
-        if (t != null) Log.e(TAG, msg, t) else Log.d(TAG, msg)
+        if (t != null) {
+            module?.log(Log.ERROR, TAG, msg, t)
+            Log.e(TAG, msg, t)
+        } else {
+            module?.log(Log.INFO, TAG, msg)
+            Log.d(TAG, msg)
+        }
     }
 
     inline fun logDebug(msg: () -> String) {
