@@ -41,7 +41,7 @@ If you encounter issues, please [file an issue on GitHub](https://github.com/hxr
    <a href="../../releases"><img src=".github/assets/badge_github.png" height="60" alt="Get it on GitHub" /></a>
    <a href="http://apps.obtainium.imranr.dev/redirect.html?r=obtainium://app/%7B%22id%22%3A%22eu.hxreborn.qsboundlesstiles%22%2C%22url%22%3A%22https%3A%2F%2Fgithub.com%2Fhxreborn%2Fqs-boundless-tiles%22%2C%22author%22%3A%22rafareborn%22%2C%22name%22%3A%22QS%20Boundless%20Tiles%22%2C%22additionalSettings%22%3A%22%7B%5C%22includePrereleases%5C%22%3Afalse%7D%22%7D"><img src=".github/assets/badge_obtainium.png" height="60" alt="Get it on Obtainium" /></a>
 
-2. Install and enable the module in [LSPosed](https://github.com/JingMatrix/LSPosed).
+2. Install and enable the module in LSPosed.
 3. Scope to `com.android.systemui`.
 4. Restart SystemUI or reboot the device.
 5. Open the app and adjust the concurrent binding limit slider.
