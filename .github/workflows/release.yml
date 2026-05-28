@@ -63,7 +63,7 @@ jobs:
           writeToFile: false
 
       - name: Create release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v3
         with:
           body: ${{ steps.changelog.outputs.changes || 'Initial release' }}
           files: |
@@ -73,7 +73,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Mirror to Xposed-Modules-Repo
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v3
         with:
           repository: Xposed-Modules-Repo/eu.hxreborn.qsboundlesstiles
           token: ${{ secrets.XPOSED_REPO_PAT }}
