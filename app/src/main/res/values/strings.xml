@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">QS Boundless Tiles</string>
-    <string name="app_desc">Raises the stock 3-tile binding limit so third-party QS tiles skip the freeze-and-rebind cycle</string>
+    <string name="app_name">Warm Tiles</string>
+    <string name="app_desc">Raises SystemUI\'s binding cap so third-party QS tiles stay warm instead of cold-starting on tap</string>
 
     <!-- Status banner -->
     <string name="module_active">Module active</string>
