@@ -60,17 +60,13 @@ class MainActivity :
                         viewModel.savePref(pref as PrefSpec<Any>, value)
                     },
                     onRestartSystemUi = { performRestart() },
-                    onClearEvents = { clearTileEvents() },
                 )
             }
         }
 
         val listener =
             SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-                when (key) {
-                    HookDataProvider.KEY_TILE_EVENTS -> refreshTileEvents()
-                    HookDataProvider.KEY_HOOK_STATUS -> refreshHookStatus()
-                }
+                if (key == HookDataProvider.KEY_HOOK_STATUS) refreshHookStatus()
             }
         hookDataListener = listener
         hookDataPrefs.registerOnSharedPreferenceChangeListener(listener)
@@ -88,14 +84,14 @@ class MainActivity :
     override fun onResume() {
         super.onResume()
         syncPrefsToRemote()
-        refreshHookData()
+        refreshHookStatus()
         viewModel.refreshStats(this)
     }
 
     override fun onServiceBind(service: XposedService) {
         remotePrefs = service.getRemotePreferences(Prefs.GROUP)
         viewModel.setXposedActive(true)
-        refreshHookData()
+        refreshHookStatus()
         syncPrefsToRemote()
     }
 
@@ -104,29 +100,9 @@ class MainActivity :
         viewModel.setXposedActive(false)
     }
 
-    private fun refreshHookData() {
-        refreshHookStatus()
-        refreshTileEvents()
-    }
-
     private fun refreshHookStatus() {
         val status = hookDataPrefs.getInt(HookDataProvider.KEY_HOOK_STATUS, 0)
         viewModel.setHookStatus(status)
-    }
-
-    private fun refreshTileEvents() {
-        val raw = hookDataPrefs.getString(HookDataProvider.KEY_TILE_EVENTS, "") ?: ""
-        viewModel.setTileEvents(raw)
-    }
-
-    private fun clearTileEvents() {
-        contentResolver.call(
-            HookDataProvider.CONTENT_URI,
-            HookDataProvider.METHOD_CLEAR_EVENTS,
-            null,
-            null,
-        )
-        viewModel.setTileEvents("")
     }
 
     private fun syncPrefsToRemote() {

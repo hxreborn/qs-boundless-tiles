@@ -30,8 +30,6 @@ abstract class DashboardViewModel : ViewModel() {
     abstract fun setHookStatus(status: Int)
 
     abstract fun refreshStats(context: Context)
-
-    abstract fun setTileEvents(raw: String)
 }
 
 private data class DeviceStats(
@@ -46,7 +44,6 @@ class DashboardViewModelImpl(
     private val xposedActive = MutableStateFlow(false)
     private val hookStatus = MutableStateFlow(0)
     private val deviceStats = MutableStateFlow(DeviceStats())
-    private val tileEvents = MutableStateFlow<List<TileEvent>>(emptyList())
 
     override val uiState: StateFlow<DashboardUiState> =
         combine(
@@ -54,8 +51,7 @@ class DashboardViewModelImpl(
             xposedActive,
             hookStatus,
             deviceStats,
-            tileEvents,
-        ) { prefs, xposed, hook, stats, events ->
+        ) { prefs, xposed, hook, stats ->
             DashboardUiState.Success(
                 prefs = prefs,
                 xposedActive = xposed,
@@ -63,7 +59,6 @@ class DashboardViewModelImpl(
                 activeQsCount = stats.activeQsCount,
                 hasRoot = stats.hasRoot,
                 tileProviders = stats.tileProviders,
-                tileEvents = events,
             )
         }.stateIn(
             scope = viewModelScope,
@@ -91,26 +86,6 @@ class DashboardViewModelImpl(
             val providers = TileScanner.getThirdPartyTileProviders(context)
             deviceStats.value = DeviceStats(root, qsCount, providers)
         }
-    }
-
-    override fun setTileEvents(raw: String) {
-        tileEvents.value =
-            raw
-                .lines()
-                .filter { it.isNotBlank() }
-                .mapNotNull { line ->
-                    val parts = line.split("|", limit = 5)
-                    if (parts.size < 2) return@mapNotNull null
-                    TileEvent(
-                        timestampMs = parts[0].toLongOrNull() ?: return@mapNotNull null,
-                        type =
-                            EventType.entries.find { it.name == parts[1] }
-                                ?: return@mapNotNull null,
-                        tileName = parts.getOrNull(2)?.takeIf { it.isNotBlank() },
-                        durationMs = parts.getOrNull(3)?.toLongOrNull(),
-                        detail = parts.getOrNull(4)?.takeIf { it.isNotBlank() },
-                    )
-                }
     }
 }
 

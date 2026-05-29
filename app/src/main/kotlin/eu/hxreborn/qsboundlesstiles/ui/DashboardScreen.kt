@@ -48,37 +48,9 @@ fun DashboardScreen(
     uiState: DashboardUiState,
     onSavePref: (pref: PrefSpec<*>, value: Any) -> Unit,
     onRestartSystemUi: () -> Unit,
-    onClearEvents: () -> Unit = {},
 ) {
     var showRestartDialog by remember { mutableStateOf(false) }
     val state = uiState as? DashboardUiState.Success
-    val activityState = rememberTileActivityState()
-
-    val filteredReversed =
-        remember(
-            state?.tileEvents,
-            activityState.searchQuery,
-            activityState.selectedTiles,
-            activityState.selectedTypes,
-        ) {
-            val events = state?.tileEvents ?: emptyList()
-            events
-                .filter { e ->
-                    val name = e.tileName ?: "System"
-                    (
-                        activityState.searchQuery.isBlank() ||
-                            name.contains(activityState.searchQuery, true)
-                    ) &&
-                        (
-                            activityState.selectedTiles.isEmpty() ||
-                                name in activityState.selectedTiles
-                        ) &&
-                        (
-                            activityState.selectedTypes.isEmpty() ||
-                                e.type in activityState.selectedTypes
-                        )
-                }.reversed()
-        }
 
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
@@ -138,68 +110,6 @@ fun DashboardScreen(
                                     vertical = Tokens.SpacingMd / 2,
                                 ),
                         )
-                    }
-                }
-
-                item(key = "activity_header") {
-                    TileActivityCard(
-                        events = state.tileEvents,
-                        activityState = activityState,
-                        onClear = onClearEvents,
-                        modifier =
-                            Modifier.padding(
-                                start = Tokens.ScreenHorizontalPadding,
-                                end = Tokens.ScreenHorizontalPadding,
-                                top = Tokens.SpacingMd,
-                            ),
-                    )
-                }
-
-                if (activityState.expanded && filteredReversed.isNotEmpty()) {
-                    items(
-                        items = filteredReversed,
-                        key = { it.timestampMs },
-                        contentType = { "event" },
-                    ) { event ->
-                        val isLast = event === filteredReversed.last()
-                        val shape =
-                            if (isLast) {
-                                RoundedCornerShape(
-                                    bottomStart = Tokens.CardRadius,
-                                    bottomEnd = Tokens.CardRadius,
-                                )
-                            } else {
-                                RectangleShape
-                            }
-                        Surface(
-                            modifier =
-                                Modifier
-                                    .padding(horizontal = Tokens.ScreenHorizontalPadding),
-                            shape = shape,
-                            color = MaterialTheme.colorScheme.surfaceContainerLow,
-                        ) {
-                            Column {
-                                HorizontalDivider(
-                                    color =
-                                        MaterialTheme.colorScheme.outlineVariant
-                                            .copy(alpha = 0.5f),
-                                )
-                                TileEventRow(
-                                    event = event,
-                                    expanded = activityState.expandedTimestamp == event.timestampMs,
-                                    onToggle = {
-                                        activityState.expandedTimestamp =
-                                            if (activityState.expandedTimestamp ==
-                                                event.timestampMs
-                                            ) {
-                                                null
-                                            } else {
-                                                event.timestampMs
-                                            }
-                                    },
-                                )
-                            }
-                        }
                     }
                 }
 
@@ -278,38 +188,6 @@ private val previewProviders =
         TileProviderInfo("Caffeine", 1),
     )
 
-private val previewEvents =
-    listOf(
-        TileEvent(
-            System.currentTimeMillis() - 6000,
-            EventType.LIMIT_SET,
-            null,
-            null,
-            "mMaxBound=12",
-        ),
-        TileEvent(
-            System.currentTimeMillis() - 4000,
-            EventType.WARM,
-            "Caffeine (Toolkit tiles)",
-            3L,
-            null,
-        ),
-        TileEvent(
-            System.currentTimeMillis() - 3000,
-            EventType.COLD_START,
-            "Shizuku",
-            1200L,
-            null,
-        ),
-        TileEvent(
-            System.currentTimeMillis() - 1000,
-            EventType.MEM_PRESSURE,
-            null,
-            null,
-            "Memory pressure intercepted, limit preserved at 12",
-        ),
-    )
-
 private val previewState =
     DashboardUiState.Success(
         prefs =
@@ -322,7 +200,6 @@ private val previewState =
         activeQsCount = 8,
         hasRoot = true,
         tileProviders = previewProviders,
-        tileEvents = previewEvents,
     )
 
 @Preview(name = "Dashboard")

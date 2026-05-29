@@ -1,14 +1,28 @@
 package eu.hxreborn.qsboundlesstiles.prefs
 
-import eu.hxreborn.qsboundlesstiles.hook.TileActivityHook
+import android.content.Context
+import android.content.SharedPreferences
+import android.content.SharedPreferences.OnSharedPreferenceChangeListener
 import eu.hxreborn.qsboundlesstiles.provider.HookDataProvider
-import eu.hxreborn.qsboundlesstiles.ui.EventType
 import eu.hxreborn.qsboundlesstiles.util.log
 import io.github.libxposed.api.XposedInterface
+import java.util.concurrent.Executors
 
 object PrefsManager {
+    // Writing hook status is cross-process Binder IPC plus a synchronous disk commit, and the
+    // constructor hook fires it during SystemUI startup when the app process is usually dead.
+    // Offload to one daemon thread so SystemUI's startup thread never blocks on it.
+    private val ioExecutor =
+        Executors.newSingleThreadExecutor { r ->
+            Thread(r, "qsbt-prefs-io").apply { isDaemon = true }
+        }
+
+    // SystemUI Context, captured from the hooked TileServices; used to reach the app's provider.
     @Volatile
-    private var remotePrefs: android.content.SharedPreferences? = null
+    var systemUiContext: Context? = null
+
+    @Volatile
+    private var remotePrefs: SharedPreferences? = null
 
     @Volatile
     var maxBound: Int = Prefs.maxBound.default
@@ -25,17 +39,20 @@ object PrefsManager {
     @Volatile
     var onMaxBoundChanged: ((Int) -> Unit)? = null
 
-    // Strong reference prevents GC (RemotePreferences uses WeakHashMap for listeners)
-    private var prefChangeListener:
-        android.content.SharedPreferences.OnSharedPreferenceChangeListener? =
-        null
+    @Volatile
+    private var hookStatusFlushed = false
+
+    // Strong references prevent GC (RemotePreferences uses WeakHashMap for listeners)
+    private var prefChangeListener: OnSharedPreferenceChangeListener? = null
+    private var hookStatusRetryListener: OnSharedPreferenceChangeListener? = null
 
     fun init(xposed: XposedInterface) {
         runCatching {
-            remotePrefs = xposed.getRemotePreferences(Prefs.GROUP)
+            val prefs = xposed.getRemotePreferences(Prefs.GROUP).also { remotePrefs = it }
             refreshCache()
-            val listener =
-                android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+
+            prefChangeListener =
+                OnSharedPreferenceChangeListener { _, key ->
                     runCatching {
                         val oldMaxBound = maxBound
                         refreshCache()
@@ -43,9 +60,15 @@ object PrefsManager {
                             onMaxBoundChanged?.invoke(maxBound)
                         }
                     }.onFailure { log("Preference change handler failed", it) }
-                }
-            prefChangeListener = listener
-            remotePrefs?.registerOnSharedPreferenceChangeListener(listener)
+                }.also(prefs::registerOnSharedPreferenceChangeListener)
+
+            // syncPrefsToRemote() in the app writes remotePrefs on every onResume, firing this
+            // listener — the signal that the app process is alive and the provider is reachable.
+            hookStatusRetryListener =
+                OnSharedPreferenceChangeListener { _, _ ->
+                    if (!hookStatusFlushed && hookStatus != 0) flushHookStatus()
+                }.also(prefs::registerOnSharedPreferenceChangeListener)
+
             log("PrefsManager initialized")
         }.onFailure { log("PrefsManager.init() failed", it) }
     }
@@ -55,34 +78,22 @@ object PrefsManager {
     }
 
     fun flushHookStatus() {
-        callProvider(HookDataProvider.METHOD_WRITE_HOOK_STATUS, hookStatus.toString())
-    }
-
-    fun recordTileEvent(
-        type: EventType,
-        tileName: String?,
-        durationMs: Long?,
-        detail: String?,
-    ) {
-        val entry =
-            listOf(
-                System.currentTimeMillis().toString(),
-                type.name,
-                tileName ?: "",
-                durationMs?.toString() ?: "",
-                detail ?: "",
-            ).joinToString("|")
-        callProvider(HookDataProvider.METHOD_RECORD_TILE_EVENT, entry)
-    }
-
-    private fun callProvider(
-        method: String,
-        arg: String?,
-    ) {
-        val context = TileActivityHook.systemUiContext ?: return
-        runCatching {
-            context.contentResolver.call(HookDataProvider.CONTENT_URI, method, arg, null)
-        }.onFailure { log("Provider call '$method' failed", it) }
+        val status = hookStatus.toString()
+        ioExecutor.execute {
+            val context = systemUiContext ?: return@execute
+            val ok =
+                runCatching {
+                    context.contentResolver.call(
+                        HookDataProvider.CONTENT_URI,
+                        HookDataProvider.METHOD_WRITE_HOOK_STATUS,
+                        status,
+                        null,
+                    )
+                }.onFailure { e ->
+                    if (e !is IllegalArgumentException) log("Hook status flush failed", e)
+                }.isSuccess
+            if (ok) hookStatusFlushed = true
+        }
     }
 
     private fun refreshCache() {
