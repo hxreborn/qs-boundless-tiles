@@ -20,10 +20,8 @@ object Logger {
     ) {
         if (t != null) {
             module?.log(Log.ERROR, TAG, msg, t)
-            Log.e(TAG, msg, t)
         } else {
             module?.log(Log.INFO, TAG, msg)
-            Log.d(TAG, msg)
         }
     }
 
