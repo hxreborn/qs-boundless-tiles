@@ -1,11 +1,10 @@
-package eu.hxreborn.qsboundlesstiles.util
+package eu.hxreborn.qsboundlesstiles
 
 import android.util.Log
-import eu.hxreborn.qsboundlesstiles.prefs.PrefsManager
 import io.github.libxposed.api.XposedModule
 
 object Logger {
-    private const val TAG = "QSBoundlessTiles"
+    private const val TAG = "WarmTiles"
 
     @Volatile
     private var module: XposedModule? = null
@@ -26,7 +25,6 @@ object Logger {
     }
 
     inline fun logDebug(msg: () -> String) {
-        if (!PrefsManager.debugLogs) return
         log(msg())
     }
 }
