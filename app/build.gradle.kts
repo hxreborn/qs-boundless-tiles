@@ -16,12 +16,12 @@ val xposedScopePackage: Provider<String> =
 
 android {
     namespace = "eu.hxreborn.qsboundlesstiles"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "eu.hxreborn.qsboundlesstiles"
         minSdk = 33
-        targetSdk = 36
+        targetSdk = 37
         versionCode = 310
         versionName = "3.1.0"
         buildConfigField("String", "SYSTEMUI_PACKAGE", "\"${xposedScopePackage.get()}\"")
