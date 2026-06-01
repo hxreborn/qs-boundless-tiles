@@ -13,7 +13,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -31,7 +31,7 @@ jobs:
           echo "mirror_tag=${code}-${name}" >> "$GITHUB_OUTPUT"
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '21'
@@ -63,7 +63,7 @@ jobs:
           writeToFile: false
 
       - name: Create release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v3
         with:
           body: ${{ steps.changelog.outputs.changes || 'Initial release' }}
           files: |
@@ -73,7 +73,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Mirror to Xposed-Modules-Repo
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v3
         with:
           repository: Xposed-Modules-Repo/eu.hxreborn.qsboundlesstiles
           token: ${{ secrets.XPOSED_REPO_PAT }}
