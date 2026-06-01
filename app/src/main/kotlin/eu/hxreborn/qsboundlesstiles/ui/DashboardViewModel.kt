@@ -27,8 +27,6 @@ abstract class DashboardViewModel : ViewModel() {
 
     abstract fun setXposedActive(active: Boolean)
 
-    abstract fun setHookStatus(status: Int)
-
     abstract fun refreshStats(context: Context)
 }
 
@@ -42,20 +40,17 @@ class DashboardViewModelImpl(
     private val repository: PrefsRepository,
 ) : DashboardViewModel() {
     private val xposedActive = MutableStateFlow(false)
-    private val hookStatus = MutableStateFlow(0)
     private val deviceStats = MutableStateFlow(DeviceStats())
 
     override val uiState: StateFlow<DashboardUiState> =
         combine(
             repository.state,
             xposedActive,
-            hookStatus,
             deviceStats,
-        ) { prefs, xposed, hook, stats ->
+        ) { prefs, xposed, stats ->
             DashboardUiState.Success(
                 prefs = prefs,
                 xposedActive = xposed,
-                hookStatus = hook,
                 activeQsCount = stats.activeQsCount,
                 hasRoot = stats.hasRoot,
                 tileProviders = stats.tileProviders,
@@ -73,10 +68,6 @@ class DashboardViewModelImpl(
 
     override fun setXposedActive(active: Boolean) {
         xposedActive.value = active
-    }
-
-    override fun setHookStatus(status: Int) {
-        hookStatus.value = status
     }
 
     override fun refreshStats(context: Context) {

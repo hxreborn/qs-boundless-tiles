@@ -35,7 +35,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import eu.hxreborn.qsboundlesstiles.R
-import eu.hxreborn.qsboundlesstiles.hook.TileServicesHook
 import eu.hxreborn.qsboundlesstiles.prefs.PrefSpec
 import eu.hxreborn.qsboundlesstiles.prefs.Prefs
 import eu.hxreborn.qsboundlesstiles.scanner.TileProviderInfo
@@ -190,13 +189,8 @@ private val previewProviders =
 
 private val previewState =
     DashboardUiState.Success(
-        prefs =
-            PrefsState(
-                maxBound = 12,
-                debugLogs = true,
-            ),
+        prefs = PrefsState(maxBound = 12),
         xposedActive = true,
-        hookStatus = TileServicesHook.HOOK_ALL,
         activeQsCount = 8,
         hasRoot = true,
         tileProviders = previewProviders,
