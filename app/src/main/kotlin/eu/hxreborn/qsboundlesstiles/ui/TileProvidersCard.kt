@@ -29,45 +29,13 @@ import eu.hxreborn.qsboundlesstiles.scanner.TileProviderInfo
 import eu.hxreborn.qsboundlesstiles.ui.theme.Tokens
 
 @Composable
-internal fun CollapsibleCardHeader(
-    title: String,
-    expanded: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val rotation by animateFloatAsState(
-        if (expanded) 180f else 0f,
-        label = "chevron",
-    )
-    Row(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .clickable(onClick = onClick),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            title,
-            style = MaterialTheme.typography.titleSmall,
-            modifier = Modifier.weight(1f),
-        )
-        Icon(
-            painterResource(R.drawable.ic_expand_more_24),
-            contentDescription = null,
-            modifier = Modifier.size(20.dp).rotate(rotation),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
-}
-
-@Composable
 internal fun TileProvidersCard(
     providers: List<TileProviderInfo>,
     modifier: Modifier = Modifier,
     initialExpanded: Boolean = false,
 ) {
     var expanded by remember { mutableStateOf(initialExpanded) }
+    val chevronRotation by animateFloatAsState(if (expanded) 180f else 0f, label = "chevron")
 
     Surface(
         modifier = modifier.fillMaxWidth(),
@@ -75,25 +43,34 @@ internal fun TileProvidersCard(
         color = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
         Column(modifier = Modifier.padding(Tokens.SpacingLg)) {
-            CollapsibleCardHeader(
-                title =
-                    stringResource(
-                        R.string.tile_providers_title_count,
-                        providers.size,
-                    ),
-                expanded = expanded,
-                onClick = { expanded = !expanded },
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = !expanded },
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    stringResource(R.string.tile_providers_title_count, providers.size),
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.weight(1f),
+                )
+                Icon(
+                    painterResource(R.drawable.ic_expand_more_24),
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp).rotate(chevronRotation),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             AnimatedVisibility(visible = expanded) {
                 Column(
                     modifier = Modifier.padding(top = Tokens.SpacingSm),
                 ) {
                     providers.forEach { provider ->
                         Row(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 4.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                         ) {
                             Text(
@@ -101,10 +78,7 @@ internal fun TileProvidersCard(
                                 style = MaterialTheme.typography.bodyMedium,
                             )
                             Text(
-                                stringResource(
-                                    R.string.tile_provider_count,
-                                    provider.tileCount,
-                                ),
+                                stringResource(R.string.tile_provider_count, provider.tileCount),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
