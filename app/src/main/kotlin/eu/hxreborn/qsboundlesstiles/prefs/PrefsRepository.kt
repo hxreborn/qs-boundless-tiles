@@ -7,20 +7,11 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 
-interface PrefsRepository {
-    val state: Flow<PrefsState>
-
-    fun <T : Any> save(
-        pref: PrefSpec<T>,
-        value: T,
-    )
-}
-
-class PrefsRepositoryImpl(
+class PrefsRepository(
     private val localPrefs: SharedPreferences,
     private val remotePrefsProvider: () -> SharedPreferences?,
-) : PrefsRepository {
-    override val state: Flow<PrefsState> =
+) {
+    val state: Flow<PrefsState> =
         callbackFlow {
             val listener =
                 SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
@@ -31,7 +22,7 @@ class PrefsRepositoryImpl(
             awaitClose { localPrefs.unregisterOnSharedPreferenceChangeListener(listener) }
         }
 
-    override fun <T : Any> save(
+    fun <T : Any> save(
         pref: PrefSpec<T>,
         value: T,
     ) {
@@ -42,6 +33,5 @@ class PrefsRepositoryImpl(
     private fun SharedPreferences.toPrefsState() =
         PrefsState(
             maxBound = Prefs.maxBound.read(this),
-            debugLogs = Prefs.debugLogs.read(this),
         )
 }

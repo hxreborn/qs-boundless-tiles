@@ -8,7 +8,6 @@ sealed interface DashboardUiState {
     data class Success(
         val prefs: PrefsState,
         val xposedActive: Boolean,
-        val hookStatus: Int,
         val activeQsCount: Int,
         val hasRoot: Boolean,
         val tileProviders: List<TileProviderInfo> = emptyList(),
@@ -17,5 +16,4 @@ sealed interface DashboardUiState {
 
 data class PrefsState(
     val maxBound: Int,
-    val debugLogs: Boolean,
 )
