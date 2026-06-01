@@ -11,12 +11,11 @@ import androidx.core.content.edit
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
-import eu.hxreborn.qsboundlesstiles.QSBoundlessTilesApp
+import eu.hxreborn.qsboundlesstiles.WarmTilesApp
 import eu.hxreborn.qsboundlesstiles.R
 import eu.hxreborn.qsboundlesstiles.prefs.PrefSpec
 import eu.hxreborn.qsboundlesstiles.prefs.Prefs
-import eu.hxreborn.qsboundlesstiles.prefs.PrefsRepositoryImpl
-import eu.hxreborn.qsboundlesstiles.provider.HookDataProvider
+import eu.hxreborn.qsboundlesstiles.prefs.PrefsRepository
 import eu.hxreborn.qsboundlesstiles.ui.theme.QsTheme
 import eu.hxreborn.qsboundlesstiles.util.RootUtils
 import io.github.libxposed.service.XposedService
@@ -33,17 +32,13 @@ class MainActivity :
     XposedServiceHelper.OnServiceListener {
     private lateinit var viewModel: DashboardViewModel
     private var remotePrefs: SharedPreferences? = null
-    private val hookDataPrefs: SharedPreferences by lazy {
-        getSharedPreferences(HookDataProvider.PREFS_NAME, MODE_PRIVATE)
-    }
-    private var hookDataListener: SharedPreferences.OnSharedPreferenceChangeListener? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
         val localPrefs = getSharedPreferences(Prefs.GROUP, MODE_PRIVATE)
-        val repository = PrefsRepositoryImpl(localPrefs) { remotePrefs }
+        val repository = PrefsRepository(localPrefs) { remotePrefs }
         viewModel =
             ViewModelProvider(
                 this,
@@ -64,34 +59,23 @@ class MainActivity :
             }
         }
 
-        val listener =
-            SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-                if (key == HookDataProvider.KEY_HOOK_STATUS) refreshHookStatus()
-            }
-        hookDataListener = listener
-        hookDataPrefs.registerOnSharedPreferenceChangeListener(listener)
-
-        QSBoundlessTilesApp.addServiceListener(this)
+        WarmTilesApp.addServiceListener(this)
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        QSBoundlessTilesApp.removeServiceListener(this)
-        hookDataListener?.let { hookDataPrefs.unregisterOnSharedPreferenceChangeListener(it) }
-        hookDataListener = null
+        WarmTilesApp.removeServiceListener(this)
     }
 
     override fun onResume() {
         super.onResume()
         syncPrefsToRemote()
-        refreshHookStatus()
         viewModel.refreshStats(this)
     }
 
     override fun onServiceBind(service: XposedService) {
         remotePrefs = service.getRemotePreferences(Prefs.GROUP)
         viewModel.setXposedActive(true)
-        refreshHookStatus()
         syncPrefsToRemote()
     }
 
@@ -100,16 +84,10 @@ class MainActivity :
         viewModel.setXposedActive(false)
     }
 
-    private fun refreshHookStatus() {
-        val status = hookDataPrefs.getInt(HookDataProvider.KEY_HOOK_STATUS, 0)
-        viewModel.setHookStatus(status)
-    }
-
     private fun syncPrefsToRemote() {
         val state = viewModel.uiState.value as? DashboardUiState.Success ?: return
         remotePrefs?.edit(commit = true) {
             Prefs.maxBound.write(this, state.prefs.maxBound)
-            Prefs.debugLogs.write(this, state.prefs.debugLogs)
         }
     }
 
@@ -145,14 +123,14 @@ class MainActivity :
                 val listener =
                     object : XposedServiceHelper.OnServiceListener {
                         override fun onServiceBind(service: XposedService) {
-                            QSBoundlessTilesApp.removeServiceListener(this)
+                            WarmTilesApp.removeServiceListener(this)
                             if (cont.isActive) cont.resume(true)
                         }
 
                         override fun onServiceDied(service: XposedService) = Unit
                     }
-                QSBoundlessTilesApp.addServiceListener(listener)
-                cont.invokeOnCancellation { QSBoundlessTilesApp.removeServiceListener(listener) }
+                WarmTilesApp.addServiceListener(listener)
+                cont.invokeOnCancellation { WarmTilesApp.removeServiceListener(listener) }
             }
         } ?: false
 }

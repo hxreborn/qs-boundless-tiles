@@ -5,7 +5,7 @@ import io.github.libxposed.service.XposedService
 import io.github.libxposed.service.XposedServiceHelper
 import java.util.concurrent.CopyOnWriteArrayList
 
-class QSBoundlessTilesApp : Application() {
+class WarmTilesApp : Application() {
     override fun onCreate() {
         super.onCreate()
         XposedServiceHelper.registerListener(

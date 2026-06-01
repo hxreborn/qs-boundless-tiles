@@ -1,5 +1,5 @@
 # Keep LSPosed module entry point
--keep class eu.hxreborn.qsboundlesstiles.QSBoundlessTilesModule { *; }
+-keep class eu.hxreborn.qsboundlesstiles.WarmTilesModule { *; }
 
 # Keep module lifecycle methods
 -adaptresourcefilecontents META-INF/xposed/java_init.list
