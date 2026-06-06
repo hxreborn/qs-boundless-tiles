@@ -1,10 +1,9 @@
 package eu.hxreborn.qsboundlesstiles.hook
 
 import android.os.Build
-import eu.hxreborn.qsboundlesstiles.prefs.Prefs
-import eu.hxreborn.qsboundlesstiles.prefs.PrefsManager
 import eu.hxreborn.qsboundlesstiles.log
 import eu.hxreborn.qsboundlesstiles.logDebug
+import eu.hxreborn.qsboundlesstiles.prefs.Prefs
 import io.github.libxposed.api.XposedInterface
 import java.lang.reflect.Field
 import java.lang.reflect.Method
@@ -23,17 +22,17 @@ object TileServicesHook {
         module: XposedInterface,
         classLoader: ClassLoader,
     ) {
-        log("Hooking TileServices on API ${Build.VERSION.SDK_INT}")
+        log("hook start api=${Build.VERSION.SDK_INT}")
 
         val tileServicesClass =
             classLoader.loadOrNull(TILE_SERVICES_CLASS) ?: run {
-                log("TileServices class not found, aborting")
+                log("class missing name=$TILE_SERVICES_CLASS")
                 return
             }
 
         maxBoundField = tileServicesClass.accessibleFieldOrNull("mMaxBound")
         if (maxBoundField == null) {
-            log("mMaxBound field not found, aborting")
+            log("field missing name=mMaxBound")
             return
         }
 
@@ -43,7 +42,7 @@ object TileServicesHook {
                 val ts = chain.thisObject ?: return@intercept result
                 tileServicesInstance = ts
                 applyUserMaxBound(ts)
-                log("TileServices constructed, mMaxBound=${PrefsManager.maxBound}")
+                log("hooked constructor maxBound=$maxBound")
                 result
             }
         }
@@ -55,13 +54,11 @@ object TileServicesHook {
                     val result = chain.proceed()
                     chain.thisObject?.let { ts ->
                         applyUserMaxBound(ts)
-                        logDebug {
-                            "setMemoryPressure: restored mMaxBound=${PrefsManager.maxBound}"
-                        }
+                        logDebug { "setMemoryPressure restored maxBound=$maxBound" }
                     }
                     result
                 }
-            } ?: log("setMemoryPressure not found (removed in Android 15+, not needed)")
+            } ?: log("method missing name=setMemoryPressure")
 
         tileServicesClass.declaredMethods
             .find { it.name == "recalculateBindAllowance" && it.parameterCount == 0 }
@@ -70,23 +67,21 @@ object TileServicesHook {
                 module.hook(method).intercept { chain ->
                     chain.thisObject?.let { ts ->
                         applyUserMaxBound(ts)
-                        logDebug {
-                            "recalculateBindAllowance: set mMaxBound=${PrefsManager.maxBound}"
-                        }
+                        logDebug { "recalculateBindAllowance set maxBound=$maxBound" }
                     }
                     chain.proceed()
                 }
-            } ?: log("recalculateBindAllowance not found -- live binding updates unavailable")
+            } ?: log("method missing name=recalculateBindAllowance")
 
-        PrefsManager.onMaxBoundChanged = { newValue ->
+        onMaxBoundChangedHandlers.add { newValue ->
             tileServicesInstance?.let { instance ->
                 setMaxBound(instance, newValue)
                 runCatching { recalculateMethod?.invoke(instance) }
-                log("Live updated mMaxBound=$newValue")
+                log("live updated maxBound=$newValue")
             }
         }
 
-        log("Hooked TileServices")
+        log("hook done")
     }
 
     private fun setMaxBound(
@@ -95,10 +90,10 @@ object TileServicesHook {
     ) {
         runCatching {
             maxBoundField?.setInt(tileServices, value)
-        }.onFailure { log("Failed to set mMaxBound", it) }
+        }.onFailure { log("set maxBound failed", it) }
     }
 
     private fun applyUserMaxBound(tileServices: Any) {
-        setMaxBound(tileServices, PrefsManager.maxBound.coerceAtLeast(Prefs.maxBound.default))
+        setMaxBound(tileServices, maxBound.coerceAtLeast(Prefs.maxBound.default))
     }
 }
