@@ -44,9 +44,10 @@ internal fun TileProvidersCard(
     ) {
         Column(modifier = Modifier.padding(Tokens.SpacingLg)) {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { expanded = !expanded },
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .clickable { expanded = !expanded },
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -68,9 +69,10 @@ internal fun TileProvidersCard(
                 ) {
                     providers.forEach { provider ->
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp),
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                         ) {
                             Text(

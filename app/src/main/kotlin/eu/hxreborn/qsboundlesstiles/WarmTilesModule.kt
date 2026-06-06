@@ -3,8 +3,8 @@ package eu.hxreborn.qsboundlesstiles
 import android.content.SharedPreferences
 import eu.hxreborn.qsboundlesstiles.hook.TileServicesHook
 import eu.hxreborn.qsboundlesstiles.hook.loadHookPrefs
-import eu.hxreborn.qsboundlesstiles.hook.onMaxBoundChangedHandlers
 import eu.hxreborn.qsboundlesstiles.hook.maxBound
+import eu.hxreborn.qsboundlesstiles.hook.onMaxBoundChangedHandlers
 import eu.hxreborn.qsboundlesstiles.prefs.Prefs
 import io.github.libxposed.api.XposedModule
 import io.github.libxposed.api.XposedModuleInterface.ModuleLoadedParam
