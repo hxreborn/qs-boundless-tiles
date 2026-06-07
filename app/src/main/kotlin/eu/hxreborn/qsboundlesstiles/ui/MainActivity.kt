@@ -7,6 +7,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.core.content.edit
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -48,13 +49,18 @@ class MainActivity :
         setContent {
             QsTheme {
                 val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+                val onSavePref =
+                    remember(viewModel) {
+                        { pref: PrefSpec<*>, value: Any ->
+                            @Suppress("UNCHECKED_CAST")
+                            viewModel.savePref(pref as PrefSpec<Any>, value)
+                        }
+                    }
+                val onRestartSystemUi = remember { { performRestart() } }
                 DashboardScreen(
                     uiState = uiState,
-                    onSavePref = { pref, value ->
-                        @Suppress("UNCHECKED_CAST")
-                        viewModel.savePref(pref as PrefSpec<Any>, value)
-                    },
-                    onRestartSystemUi = { performRestart() },
+                    onSavePref = onSavePref,
+                    onRestartSystemUi = onRestartSystemUi,
                 )
             }
         }
