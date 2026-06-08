@@ -17,32 +17,19 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-abstract class DashboardViewModel : ViewModel() {
-    abstract val uiState: StateFlow<DashboardUiState>
-
-    abstract fun <T : Any> savePref(
-        pref: PrefSpec<T>,
-        value: T,
-    )
-
-    abstract fun setXposedActive(active: Boolean)
-
-    abstract fun refreshStats(context: Context)
-}
-
 private data class DeviceStats(
     val hasRoot: Boolean = false,
     val activeQsCount: Int = 0,
     val tileProviders: List<TileProviderInfo> = emptyList(),
 )
 
-class DashboardViewModelImpl(
+class DashboardViewModel(
     private val repository: PrefsRepository,
-) : DashboardViewModel() {
+) : ViewModel() {
     private val xposedActive = MutableStateFlow(false)
     private val deviceStats = MutableStateFlow(DeviceStats())
 
-    override val uiState: StateFlow<DashboardUiState> =
+    val uiState: StateFlow<DashboardUiState> =
         combine(
             repository.state,
             xposedActive,
@@ -61,16 +48,16 @@ class DashboardViewModelImpl(
             initialValue = DashboardUiState.Loading,
         )
 
-    override fun <T : Any> savePref(
+    fun <T : Any> savePref(
         pref: PrefSpec<T>,
         value: T,
     ) = repository.save(pref, value)
 
-    override fun setXposedActive(active: Boolean) {
+    fun setXposedActive(active: Boolean) {
         xposedActive.value = active
     }
 
-    override fun refreshStats(context: Context) {
+    fun refreshStats(context: Context) {
         viewModelScope.launch(Dispatchers.IO) {
             val root = RootUtils.isRootAvailable()
             val qsCount = if (root) RootUtils.getActiveQsTileCount() else 0
@@ -85,5 +72,5 @@ class DashboardViewModelFactory(
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T =
-        DashboardViewModelImpl(repository) as T
+        DashboardViewModel(repository) as T
 }

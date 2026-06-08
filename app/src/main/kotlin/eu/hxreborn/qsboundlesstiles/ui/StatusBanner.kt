@@ -26,19 +26,18 @@ internal fun StatusBanner(
     modifier: Modifier = Modifier,
 ) {
     val active = state?.xposedActive == true
-    val (iconRes, containerColor, contentColor) =
+    val iconRes = if (active) R.drawable.ic_check_circle_24 else R.drawable.ic_warning_24
+    val containerColor =
         if (active) {
-            Triple(
-                R.drawable.ic_check_circle_24,
-                MaterialTheme.colorScheme.primaryContainer,
-                MaterialTheme.colorScheme.onPrimaryContainer,
-            )
+            MaterialTheme.colorScheme.primaryContainer
         } else {
-            Triple(
-                R.drawable.ic_warning_24,
-                MaterialTheme.colorScheme.errorContainer,
-                MaterialTheme.colorScheme.onErrorContainer,
-            )
+            MaterialTheme.colorScheme.errorContainer
+        }
+    val contentColor =
+        if (active) {
+            MaterialTheme.colorScheme.onPrimaryContainer
+        } else {
+            MaterialTheme.colorScheme.onErrorContainer
         }
 
     Surface(

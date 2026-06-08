@@ -67,7 +67,7 @@ fun DashboardScreen(
                     bottom = innerPadding.calculateBottomPadding() + 24.dp,
                 ),
         ) {
-            item(key = "status") {
+            item(key = "status", contentType = "banner") {
                 StatusBanner(
                     state = state,
                     modifier =
@@ -79,7 +79,7 @@ fun DashboardScreen(
             }
 
             if (state != null) {
-                item(key = "binding_limit") {
+                item(key = "binding_limit", contentType = "card") {
                     BindingLimitCard(
                         state = state,
                         onValueCommit = { value ->
@@ -97,7 +97,7 @@ fun DashboardScreen(
                 }
 
                 if (state.tileProviders.isNotEmpty()) {
-                    item(key = "providers") {
+                    item(key = "providers", contentType = "card") {
                         TileProvidersCard(
                             providers = state.tileProviders,
                             modifier =
@@ -109,7 +109,7 @@ fun DashboardScreen(
                     }
                 }
 
-                item(key = "actions") {
+                item(key = "actions", contentType = "action") {
                     RestartAction(
                         hasRoot = state.hasRoot,
                         onClick = { showRestartDialog = true },
@@ -123,7 +123,7 @@ fun DashboardScreen(
                 }
             }
 
-            item(key = "footer_spacer") {
+            item(key = "footer_spacer", contentType = "spacer") {
                 Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.safeDrawing))
             }
         }

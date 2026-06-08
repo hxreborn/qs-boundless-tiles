@@ -32,7 +32,7 @@ class MainActivity :
     ComponentActivity(),
     XposedServiceHelper.OnServiceListener {
     private var remotePrefs: SharedPreferences? = null
-    private val viewModel: DashboardViewModel by viewModels<DashboardViewModelImpl> {
+    private val viewModel: DashboardViewModel by viewModels {
         DashboardViewModelFactory(
             PrefsRepository(getSharedPreferences(Prefs.GROUP, MODE_PRIVATE)) { remotePrefs },
         )

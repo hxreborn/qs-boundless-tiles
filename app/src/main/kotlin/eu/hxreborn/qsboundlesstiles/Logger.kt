@@ -16,4 +16,6 @@ fun log(
     }
 }
 
-inline fun logDebug(msg: () -> String) = log(msg())
+inline fun logDebug(msg: () -> String) {
+    if (BuildConfig.DEBUG) log(msg())
+}
