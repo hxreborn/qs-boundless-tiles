@@ -43,6 +43,7 @@ fun DashboardScreen(
     uiState: DashboardUiState,
     onSavePref: (pref: PrefSpec<*>, value: Any) -> Unit,
     onRestartSystemUi: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     var showRestartDialog by remember { mutableStateOf(false) }
     val state = uiState as? DashboardUiState.Success
@@ -50,7 +51,7 @@ fun DashboardScreen(
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     Scaffold(
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             LargeTopAppBar(
                 title = { Text(stringResource(R.string.app_name)) },

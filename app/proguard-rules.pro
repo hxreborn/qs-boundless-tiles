@@ -28,9 +28,6 @@
     public static int d(...);
 }
 
-# Keep preferences manager for cross-process access
--keep class eu.hxreborn.qsboundlesstiles.prefs.PrefsManager { *; }
-
 # Keep UI classes
 -keep class eu.hxreborn.qsboundlesstiles.ui.** { *; }
 -keep class eu.hxreborn.qsboundlesstiles.scanner.** { *; }

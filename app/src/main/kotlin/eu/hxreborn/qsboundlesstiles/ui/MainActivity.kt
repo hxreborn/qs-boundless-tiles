@@ -6,10 +6,10 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.core.content.edit
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import eu.hxreborn.qsboundlesstiles.R
@@ -31,20 +31,16 @@ import kotlin.time.Duration.Companion.seconds
 class MainActivity :
     ComponentActivity(),
     XposedServiceHelper.OnServiceListener {
-    private lateinit var viewModel: DashboardViewModel
     private var remotePrefs: SharedPreferences? = null
+    private val viewModel: DashboardViewModel by viewModels<DashboardViewModelImpl> {
+        DashboardViewModelFactory(
+            PrefsRepository(getSharedPreferences(Prefs.GROUP, MODE_PRIVATE)) { remotePrefs },
+        )
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-
-        val localPrefs = getSharedPreferences(Prefs.GROUP, MODE_PRIVATE)
-        val repository = PrefsRepository(localPrefs) { remotePrefs }
-        viewModel =
-            ViewModelProvider(
-                this,
-                DashboardViewModelFactory(repository),
-            )[DashboardViewModelImpl::class.java]
 
         setContent {
             QsTheme {
