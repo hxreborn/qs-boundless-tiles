@@ -2,7 +2,6 @@ package eu.hxreborn.qsboundlesstiles.hook
 
 import android.os.Build
 import android.os.SystemClock
-import android.util.ArrayMap
 import eu.hxreborn.qsboundlesstiles.BuildConfig
 import eu.hxreborn.qsboundlesstiles.log
 import eu.hxreborn.qsboundlesstiles.logDebug
@@ -23,15 +22,12 @@ object TileServicesHook {
         private set
 
     // Set once at hook() setup. Dead fields in release; R8 folds the BuildConfig.DEBUG branches.
-    @Volatile private var dbgServicesField: Field? = null
-
     @Volatile private var dbgTsmServiceField: Field? = null
-
-    @Volatile private var dbgTsmBoundField: Field? = null
 
     @Volatile private var dbgTsmComponentField: Field? = null
 
-    @Volatile private var dbgLastRecalcNanos = 0L
+    // Maps component string → tap nanos for in-flight cold starts.
+    private val dbgColdClickNanos = HashMap<String, Long>()
 
     fun hook(
         module: XposedInterface,
@@ -52,19 +48,13 @@ object TileServicesHook {
         }
 
         if (BuildConfig.DEBUG) {
-            dbgServicesField = tileServicesClass.accessibleFieldOrNull("mServices")
             classLoader.loadOrNull(TSM_CLASS)?.also { tsmClass ->
                 dbgTsmServiceField = tsmClass.accessibleFieldOrNull("mService")
-                dbgTsmBoundField = tsmClass.accessibleFieldOrNull("mBound")
                 dbgTsmComponentField = tsmClass.accessibleFieldOrNull("mComponent")
-                hookTileServiceManagerForTiming(module, tsmClass)
+                hookTileServiceManager(module, tsmClass)
             }
             logDebug {
-                "debug probes" +
-                    " mServices=${dbgServicesField != null}" +
-                    " tsmService=${dbgTsmServiceField != null}" +
-                    " tsmBound=${dbgTsmBoundField != null}" +
-                    " tsmComponent=${dbgTsmComponentField != null}"
+                "debug probes tsmService=${dbgTsmServiceField != null} tsmComponent=${dbgTsmComponentField != null}"
             }
         }
 
@@ -98,16 +88,7 @@ object TileServicesHook {
             ?.let { method ->
                 module.hook(method).intercept { chain ->
                     chain.thisObject?.let { ts -> applyUserMaxBound(ts) }
-                    if (BuildConfig.DEBUG) {
-                        dbgLastRecalcNanos = SystemClock.elapsedRealtimeNanos()
-                        val result = chain.proceed()
-                        val elapsed =
-                            (SystemClock.elapsedRealtimeNanos() - dbgLastRecalcNanos) / 1_000_000L
-                        chain.thisObject?.let { ts -> logTileStates(ts, elapsed) }
-                        result
-                    } else {
-                        chain.proceed()
-                    }
+                    chain.proceed()
                 }
             } ?: log("method missing name=recalculateBindAllowance")
 
@@ -123,60 +104,45 @@ object TileServicesHook {
     }
 
     // No internal BuildConfig.DEBUG guard; only reachable from the debug branch in hook().
-    private fun hookTileServiceManagerForTiming(
+    private fun hookTileServiceManager(
         module: XposedInterface,
         tsmClass: Class<*>,
     ) {
+        // Log warm/cold at tap time.
+        tsmClass.declaredMethods
+            .find { it.name == "handleClick" && it.parameterCount == 1 }
+            ?.let { method ->
+                module.hook(method).intercept { chain ->
+                    val tsm = chain.thisObject ?: return@intercept chain.proceed()
+                    val warm =
+                        dbgTsmServiceField?.let { runCatching { it.get(tsm) }.getOrNull() } != null
+                    val comp = dbgTsmComponentField?.let { runCatching { it.get(tsm) }.getOrNull() }
+                    if (warm) {
+                        logDebug { "tile tap warm component=$comp" }
+                    } else {
+                        dbgColdClickNanos[comp.toString()] = SystemClock.elapsedRealtimeNanos()
+                        logDebug { "tile tap cold component=$comp" }
+                    }
+                    chain.proceed()
+                }
+            } ?: logDebug { "debug method missing name=handleClick class=$TSM_CLASS" }
+
+        // Log elapsed time when a cold tile finishes binding.
         tsmClass.declaredMethods
             .find { it.name == "onServiceConnected" && it.parameterCount == 2 }
             ?.let { method ->
                 module.hook(method).intercept { chain ->
                     val result = chain.proceed()
                     val tsm = chain.thisObject ?: return@intercept result
-                    val elapsedMs =
-                        (SystemClock.elapsedRealtimeNanos() - dbgLastRecalcNanos) / 1_000_000L
                     val comp = dbgTsmComponentField?.let { runCatching { it.get(tsm) }.getOrNull() }
-                    logDebug { "tile bound elapsed=${elapsedMs}ms component=$comp" }
+                    val t0 = dbgColdClickNanos.remove(comp.toString())
+                    if (t0 != null) {
+                        val elapsed = (SystemClock.elapsedRealtimeNanos() - t0) / 1_000_000L
+                        logDebug { "tile cold start done elapsed=${elapsed}ms component=$comp" }
+                    }
                     result
                 }
             } ?: logDebug { "debug method missing name=onServiceConnected class=$TSM_CLASS" }
-    }
-
-    // No internal BuildConfig.DEBUG guard; only reachable from the debug branch in recalculateBindAllowance.
-    private fun logTileStates(
-        tileServices: Any,
-        elapsedMs: Long,
-    ) {
-        val sf = dbgServicesField
-        if (sf == null) {
-            logDebug { "recalculate done maxBound=$maxBound elapsed=${elapsedMs}ms" }
-            return
-        }
-
-        @Suppress("UNCHECKED_CAST")
-        val services = runCatching { sf.get(tileServices) as? ArrayMap<*, *> }.getOrNull()
-        if (services == null || services.isEmpty()) {
-            logDebug { "recalculate done maxBound=$maxBound elapsed=${elapsedMs}ms" }
-            return
-        }
-
-        val svf = dbgTsmServiceField
-        val bf = dbgTsmBoundField
-        var warm = 0
-        var binding = 0
-        var cold = 0
-        for (tsm in services.values) {
-            tsm ?: continue
-            when {
-                svf != null && runCatching { svf.get(tsm) }.getOrNull() != null -> warm++
-                bf != null && runCatching { bf.getBoolean(tsm) }.getOrDefault(false) -> binding++
-                else -> cold++
-            }
-        }
-
-        logDebug {
-            "recalculate done warm=$warm binding=$binding cold=$cold maxBound=$maxBound elapsed=${elapsedMs}ms"
-        }
     }
 
     private fun setMaxBound(
