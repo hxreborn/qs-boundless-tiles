@@ -51,9 +51,7 @@ class DashboardViewModel(
     fun <T : Any> savePref(
         pref: PrefSpec<T>,
         value: T,
-    ) {
-        viewModelScope.launch(Dispatchers.IO) { repository.save(pref, value) }
-    }
+    ) = repository.save(pref, value)
 
     fun setXposedActive(active: Boolean) {
         xposedActive.value = active

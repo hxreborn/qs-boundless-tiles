@@ -23,7 +23,7 @@ class PrefsRepository(
         value: T,
     ) {
         localPrefs.edit { pref.write(this, value) }
-        remotePrefsProvider()?.edit(commit = true) { pref.write(this, value) }
+        remotePrefsProvider()?.edit { pref.write(this, value) }
     }
 
     val state: Flow<AppPrefs> =

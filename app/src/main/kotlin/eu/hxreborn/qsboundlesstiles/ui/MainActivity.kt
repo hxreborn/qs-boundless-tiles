@@ -21,7 +21,6 @@ import eu.hxreborn.qsboundlesstiles.ui.theme.QsTheme
 import eu.hxreborn.qsboundlesstiles.util.RootUtils
 import io.github.libxposed.service.XposedService
 import io.github.libxposed.service.XposedServiceHelper
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
@@ -89,11 +88,8 @@ class MainActivity :
 
     private fun syncPrefsToRemote() {
         val state = viewModel.uiState.value as? DashboardUiState.Success ?: return
-        val remote = remotePrefs ?: return
-        lifecycleScope.launch(Dispatchers.IO) {
-            remote.edit(commit = true) {
-                Prefs.maxBound.write(this, state.prefs.maxBound)
-            }
+        remotePrefs?.edit {
+            Prefs.maxBound.write(this, state.prefs.maxBound)
         }
     }
 
