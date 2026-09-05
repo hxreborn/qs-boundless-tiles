@@ -1,46 +1,33 @@
 package eu.hxreborn.qsboundlesstiles
 
-import android.content.SharedPreferences
-import eu.hxreborn.qsboundlesstiles.hook.TileServicesHook
-import eu.hxreborn.qsboundlesstiles.hook.loadHookPrefs
-import eu.hxreborn.qsboundlesstiles.hook.maxBound
-import eu.hxreborn.qsboundlesstiles.hook.onMaxBoundChangedHandlers
-import eu.hxreborn.qsboundlesstiles.prefs.Prefs
+import android.util.Log
 import io.github.libxposed.api.XposedModule
-import io.github.libxposed.api.XposedModuleInterface.ModuleLoadedParam
 import io.github.libxposed.api.XposedModuleInterface.PackageReadyParam
 
-@PublishedApi
-internal lateinit var module: WarmTilesModule
+private const val TAG = "WarmTiles"
+private const val TILE_SERVICES = "com.android.systemui.qs.external.TileServices"
 
 class WarmTilesModule : XposedModule() {
-    private var prefsListener: SharedPreferences.OnSharedPreferenceChangeListener? = null
-
-    override fun onModuleLoaded(param: ModuleLoadedParam) {
-        module = this
-        log("loaded version=${BuildConfig.VERSION_NAME}")
-        runCatching {
-            val prefs = getRemotePreferences(Prefs.GROUP)
-            loadHookPrefs(prefs)
-            val listener =
-                SharedPreferences.OnSharedPreferenceChangeListener { sp, key ->
-                    runCatching {
-                        val old = maxBound
-                        loadHookPrefs(sp)
-                        if (key == Prefs.maxBound.key && maxBound != old) {
-                            onMaxBoundChangedHandlers.forEach { it(maxBound) }
-                        }
-                    }.onFailure { log("prefs reload failed", it) }
-                }
-            prefsListener = listener
-            prefs.registerOnSharedPreferenceChangeListener(listener)
-        }.onFailure { log("prefs init failed", it) }
-    }
-
     override fun onPackageReady(param: PackageReadyParam) {
-        if (param.packageName != BuildConfig.SYSTEMUI_PACKAGE || !param.isFirstPackage) return
-        runCatching {
-            TileServicesHook.hook(this, param.classLoader)
-        }.onFailure { e -> log("hook failed pkg=${param.packageName}", e) }
+        if (!param.isFirstPackage) return
+        val field =
+            runCatching {
+                param.classLoader.loadClass(TILE_SERVICES).getDeclaredField("mMaxBound")
+            }.getOrElse {
+                log(Log.ERROR, TAG, "mMaxBound lookup failed", it)
+                return
+            }
+        field.isAccessible = true
+        val cap: Any =
+            if (field.type == Byte::class.javaPrimitiveType) Byte.MAX_VALUE else Int.MAX_VALUE
+        for (ctor in field.declaringClass.declaredConstructors) {
+            hook(ctor).intercept { chain ->
+                val result = chain.proceed()
+                runCatching { field.set(chain.thisObject, cap) }
+                    .onSuccess { log(Log.INFO, TAG, "mMaxBound=$cap") }
+                    .onFailure { log(Log.ERROR, TAG, "set mMaxBound failed", it) }
+                result
+            }
+        }
     }
 }

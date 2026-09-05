@@ -1,33 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Warm Tiles</string>
-    <string name="app_desc">Raises SystemUI\'s binding cap so third-party QS tiles stay warm instead of cold-starting on tap</string>
-
-    <!-- Status banner -->
-    <string name="module_active">Module active</string>
-    <string name="module_inactive">Hooks not loaded</string>
-    <string name="module_inactive_subtitle">Enable in LSPosed + add SystemUI scope, then reboot</string>
-    <string name="module_no_root_title">Limited info</string>
-    <string name="module_no_root_subtitle">Root needed to count tiles and restart SystemUI</string>
-
-    <!-- Status subtitle variants -->
-    <string name="status_all_bound">All %1$d tiles can bind concurrently</string>
-    <string name="status_cold_start">%1$d of %2$d tiles may cold-start</string>
-
-    <!-- Tile Limit -->
-    <string name="tile_limit_title">Third-party binding limit</string>
-    <string name="tile_limit_subtitle">Max concurrent TileService bindings. Stock is 3.</string>
-
-    <!-- Tile providers -->
-    <string name="tile_providers_title_count">Tile providers (%d)</string>
-    <string name="tile_provider_count">%d tile(s)</string>
-
-    <!-- Restart SystemUI -->
-    <string name="restart_systemui">Restart SystemUI</string>
-    <string name="restart_warning">Kills and restarts the SystemUI process. Notification shade will close and tiles rebind with the new limit.</string>
-    <string name="restart_requires_root">Root access required</string>
-    <string name="restart_systemui_no_root">Root access required to restart SystemUI</string>
-    <string name="restart_systemui_success">SystemUI restarted</string>
-    <string name="restart_systemui_failed">Failed to restart SystemUI</string>
-    <string name="systemui_still_restarting">SystemUI still restarting</string>
+    <string name="app_desc">Lifts SystemUI\'s binding cap so third-party QS tiles stay warm instead of cold-starting on tap</string>
 </resources>

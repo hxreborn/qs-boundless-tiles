@@ -1,30 +1,9 @@
 [versions]
 agp = "9.2.1"
-kotlin = "2.3.21"
-xposed = "101.0.0"
-material = "1.14.0"
-lifecycle = "2.10.0"
-core-ktx = "1.18.0"
-compose-bom = "2026.05.01"
-material3 = "1.5.0-alpha20"
-activity-compose = "1.13.0"
-libsu = "6.0.0"
+xposed = "101.0.1"
 
 [libraries]
 libxposed-api = { group = "io.github.libxposed", name = "api", version.ref = "xposed" }
-libxposed-service = { group = "io.github.libxposed", name = "service", version.ref = "xposed" }
-material = { group = "com.google.android.material", name = "material", version.ref = "material" }
-lifecycle-runtime = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycle" }
-lifecycle-viewmodel = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-ktx", version.ref = "lifecycle" }
-lifecycle-runtime-compose = { group = "androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "lifecycle" }
-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "core-ktx" }
-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "compose-bom" }
-compose-material3 = { group = "androidx.compose.material3", name = "material3", version.ref = "material3" }
-compose-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
-compose-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activity-compose" }
-libsu-core = { group = "com.github.topjohnwu.libsu", name = "core", version.ref = "libsu" }
 
 [plugins]
 agp-app = { id = "com.android.application", version.ref = "agp" }
-kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }

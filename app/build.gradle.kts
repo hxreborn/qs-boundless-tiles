@@ -1,18 +1,6 @@
 plugins {
     alias(libs.plugins.agp.app)
-    alias(libs.plugins.kotlin.compose)
 }
-
-val xposedScopePackage: Provider<String> =
-    providers
-        .fileContents(layout.projectDirectory.file("src/main/resources/META-INF/xposed/scope.list"))
-        .asText
-        .map { content ->
-            content
-                .lineSequence()
-                .first { it.isNotBlank() }
-                .trim()
-        }
 
 android {
     namespace = "eu.hxreborn.qsboundlesstiles"
@@ -24,7 +12,6 @@ android {
         targetSdk = 37
         versionCode = 311
         versionName = "3.1.1"
-        buildConfigField("String", "SYSTEMUI_PACKAGE", "\"${xposedScopePackage.get()}\"")
     }
 
     signingConfigs {
@@ -61,20 +48,11 @@ android {
                     .getByName("release")
                     .takeIf { it.storeFile != null }
         }
-        debug {
-            isMinifyEnabled = false
-            isShrinkResources = false
-        }
     }
 
     dependenciesInfo {
         includeInApk = false
         includeInBundle = false
-    }
-
-    buildFeatures {
-        buildConfig = true
-        compose = true
     }
 
     compileOptions {
@@ -84,15 +62,15 @@ android {
 
     packaging {
         resources {
-            pickFirsts += "META-INF/xposed/*"
+            merges += "META-INF/xposed/*"
+            excludes += "**"
         }
     }
 
     lint {
         abortOnError = true
         checkReleaseBuilds = false
-        disable.addAll(listOf("PrivateApi", "DiscouragedPrivateApi", "QueryAllPackagesPermission"))
-        ignoreTestSources = true
+        disable.addAll(listOf("PrivateApi", "DiscouragedPrivateApi"))
     }
 }
 
@@ -102,18 +80,6 @@ kotlin {
 
 dependencies {
     compileOnly(libs.libxposed.api)
-    implementation(libs.libxposed.service)
-    implementation(libs.material)
-    implementation(libs.lifecycle.runtime)
-    implementation(libs.lifecycle.viewmodel)
-    implementation(libs.lifecycle.runtime.compose)
-    implementation(libs.core.ktx)
-    implementation(libs.libsu.core)
-    implementation(platform(libs.compose.bom))
-    implementation(libs.compose.material3)
-    implementation(libs.compose.ui.tooling.preview)
-    implementation(libs.activity.compose)
-    debugImplementation(libs.compose.ui.tooling)
 }
 
 val ktlintCheck by tasks.registering(JavaExec::class) {
