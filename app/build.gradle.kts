@@ -10,8 +10,8 @@ android {
         applicationId = "eu.hxreborn.qsboundlesstiles"
         minSdk = 33
         targetSdk = 37
-        versionCode = 311
-        versionName = "3.1.1"
+        versionCode = 400
+        versionName = "4.0.0"
     }
 
     signingConfigs {
