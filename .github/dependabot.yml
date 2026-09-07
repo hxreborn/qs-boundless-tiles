@@ -2,6 +2,8 @@ version: 2
 
 updates:
   - package-ecosystem: "gradle"
+    commit-message:
+      prefix: "ci(deps)"
     directory: "/"
     schedule:
       interval: "monthly"
@@ -13,6 +15,8 @@ updates:
           - "io.github.libxposed*"
 
   - package-ecosystem: "github-actions"
+    commit-message:
+      prefix: "ci(deps)"
     directory: "/"
     schedule:
       interval: "monthly"
